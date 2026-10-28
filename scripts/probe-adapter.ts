@@ -202,6 +202,7 @@ async function main(): Promise<void> {
   const portArg = args.value("port");
   if (!portArg || !Number.isInteger(Number(portArg))) throw new Error("--port <Port> ist Pflicht (Zweitinstanz, z. B. --port 9391) — kein Standardport.");
   const port = Number(portArg);
+  if (port === 9222) throw new Error("Port 9222 ist die reguläre Instanz — nie anfassen. Zweitinstanz verwenden.");
 
   const cdp = await attachTo("workspace", port, REPO_NAME);
   if (!cdp) throw new Error(`Kein Obsidian-Hauptfenster auf Port ${port} für Vault „${REPO_NAME}“.`);

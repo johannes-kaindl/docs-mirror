@@ -13,7 +13,8 @@ export interface DeviceStateOptions {
 
 /** Gerätelokaler Zustand über `app.loadLocalStorage`/`saveLocalStorage` (je Vault und Gerät, nie im Sync).
  *  Ein Schlüssel je Wert, mit Plugin-ID als Präfix; Manifest und letzter Lauf liegen als JSON-Text, damit ein
- *  defekter Wert (`JSON.parse` wirft) zu `null` wird statt den Start zu brechen. */
+ *  defekter Wert (`JSON.parse` wirft) zu `null` wird statt den Start zu brechen. `save` fängt einen Wurf von
+ *  `saveLocalStorage` (Speicher voll) bewusst nicht ab: der Runner meldet ihn als Fehler (`trySave`). */
 export function createDeviceState(app: App, pluginId: string, opts: DeviceStateOptions = {}): DeviceState & { setRoot(root: string): void } {
   const key = (name: string): string => `${pluginId}:${name}`;
 
@@ -47,7 +48,8 @@ export function createDeviceState(app: App, pluginId: string, opts: DeviceStateO
     save(p) {
       if (p.manifest !== undefined) {
         const json = JSON.stringify(p.manifest);
-        if (json.length > MANIFEST_WARN_BYTES) opts.onLargeManifest?.(json.length);
+        const bytes = new TextEncoder().encode(json).length;
+        if (bytes > MANIFEST_WARN_BYTES) opts.onLargeManifest?.(bytes);
         app.saveLocalStorage(key("manifest"), json);
       }
       if (p.fingerprint !== undefined) app.saveLocalStorage(key("fingerprint"), p.fingerprint);

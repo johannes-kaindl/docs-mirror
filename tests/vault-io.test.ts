@@ -112,4 +112,71 @@ describe("createVaultPort", () => {
     const { port } = setup();
     await expect(port.clearTemp()).resolves.toBeUndefined();
   });
+
+  it("tempDir: leer, ., .., absolut, mit ..-Segment oder außerhalb configDir wirft sofort", () => {
+    const app = { vault: { adapter: fakeAdapter(), configDir: ".obsidian" } } as unknown as App;
+    for (const bad of ["", ".", "..", "/x", "a/../b", ".obsidian/../x", "docs", ".obsidian", ".obsidianX/tmp", ".obsidian/./tmp"]) {
+      expect(() => createVaultPort(app, bad), JSON.stringify(bad)).toThrow();
+    }
+    expect(() => createVaultPort(app, ".obsidian/plugins/x/tmp")).not.toThrow();
+  });
+
+  it("clearTemp löscht nur Dateien mit dem Temp-Präfix, Fremddateien im Temp-Ordner bleiben", async () => {
+    const { adapter, port } = setup({ files: { [`${TEMP}/.dmr-tmp-0`]: "t", [`${TEMP}/fremd.md`]: "f", [`${TEMP}/notiz.dmr-tmp-1`]: "n" } });
+    await port.clearTemp();
+    expect([...adapter.files.keys()].sort()).toEqual([`${TEMP}/fremd.md`, `${TEMP}/notiz.dmr-tmp-1`]);
+  });
+
+  it("Pfadschranke: remove, stat, read, mkdirp, replace, removeIfEmpty, writeTemp lehnen unsichere Pfade ab", async () => {
+    const { adapter, port } = setup({ files: { "a.md": "a" }, folders: ["leer"] });
+    await port.writeTemp(".dmr-tmp-0", enc("x"), 1);
+    const bad = ["../a.md", "/etc/x", "a\\b.md", "a\0b", "", "a/../../b", "./a.md", "a//b"];
+    adapter.calls.length = 0;
+    for (const b of bad) {
+      const label = JSON.stringify(b);
+      await expect(port.remove(b), `remove ${label}`).rejects.toThrow(/unsafe vault path/);
+      await expect(port.stat(b), `stat ${label}`).rejects.toThrow();
+      await expect(port.read(b), `read ${label}`).rejects.toThrow();
+      await expect(port.mkdirp(b), `mkdirp ${label}`).rejects.toThrow();
+      await expect(port.replace(".dmr-tmp-0", b), `replace ${label}`).rejects.toThrow();
+      await expect(port.removeIfEmpty(b), `removeIfEmpty ${label}`).rejects.toThrow();
+    }
+    await expect(port.writeTemp("../x", enc("x"), 1)).rejects.toThrow();
+    await expect(port.writeTemp("a/.dmr-tmp-0", enc("x"), 1)).rejects.toThrow();
+    await expect(port.writeTemp("normal.md", enc("x"), 1)).rejects.toThrow();
+    expect(adapter.calls).toEqual([]);
+    expect(adapter.files.has("a.md")).toBe(true);
+  });
+
+  it("Wurzelpfad im Temp-Schema ist als Ziel abgelehnt (replace, mkdirp, removeIfEmpty)", async () => {
+    const { port } = setup();
+    await port.writeTemp(".dmr-tmp-0", enc("x"), 1);
+    await expect(port.replace(".dmr-tmp-0", ".dmr-tmp-5")).rejects.toThrow(/reserved/);
+    await expect(port.mkdirp(".dmr-tmp-5")).rejects.toThrow(/reserved/);
+    await expect(port.removeIfEmpty(".dmr-tmp-5")).rejects.toThrow(/reserved/);
+  });
+
+  it("removeIfEmpty: Vault-Wurzel, configDir und alles darunter werden nie entfernt", async () => {
+    const { adapter, port } = setup({ folders: [".obsidian/plugins/leer"] });
+    for (const d of ["", ".", ".obsidian", ".obsidian/plugins/leer"]) {
+      await expect(port.removeIfEmpty(d), JSON.stringify(d)).rejects.toThrow();
+    }
+    expect(adapter.calls.some((c) => c.startsWith("rmdir:"))).toBe(false);
+  });
+
+  it("removeIfEmpty: legt zwischen erstem und zweitem list jemand eine Datei an, bleibt Ordner und Datei", async () => {
+    const { adapter, port } = setup({ folders: ["d"] });
+    adapter.onList = (p, n) => { if (p === "d" && n === 1) adapter.files.set("d/neu.md", { data: new Uint8Array([1]), mtime: 1 }); };
+    await port.removeIfEmpty("d");
+    expect(adapter.folders.has("d")).toBe(true);
+    expect(adapter.files.has("d/neu.md")).toBe(true);
+    expect(adapter.calls.some((c) => c.startsWith("rmdir:"))).toBe(false);
+  });
+
+  it("removeIfEmpty: ein leerer Ordner kostet genau zwei list-Aufrufe und wird dann entfernt", async () => {
+    const { adapter, port } = setup({ folders: ["d"] });
+    await port.removeIfEmpty("d");
+    expect(adapter.calls.filter((c) => c === "list:d")).toHaveLength(2);
+    expect(adapter.folders.has("d")).toBe(false);
+  });
 });

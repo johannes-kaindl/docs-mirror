@@ -32,7 +32,9 @@ export function createSourcePort(root: string): SourcePort & { readFile(rel: str
     },
     async readFile(rel) {
       const { fs, path } = nodeModules();
-      return new Uint8Array(await fs.readFile(path.join(root, rel)));
+      const full = path.join(root, rel);
+      if ((await fs.lstat(full)).isSymbolicLink()) throw new Error(`docs-mirror: refusing to read symlink "${rel}"`);
+      return new Uint8Array(await fs.readFile(full));
     },
   };
 }

@@ -33,6 +33,12 @@ describe("createSourcePort (Struktur, echtes Dateisystem)", () => {
     await expect(port.readdir("gibts-nicht")).rejects.toThrow();
   });
 
+  it("readFile lehnt einen Symlink mit klarer Meldung ab", async () => {
+    const port = createSourcePort(root);
+    symlinkSync(join(root, "a.md"), join(root, "a-link.md"));
+    await expect(port.readFile("a-link.md")).rejects.toThrow(/symlink/);
+  });
+
   it("readFile liest die Bytes relativ zur Wurzel", async () => {
     const port = createSourcePort(root);
     expect(new TextDecoder().decode(await port.readFile("sub/b.md"))).toBe("bb");

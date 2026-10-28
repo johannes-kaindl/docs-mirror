@@ -78,6 +78,15 @@ describe("createDeviceState", () => {
     await st.save({ manifest: big });
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0][0]).toBeGreaterThan(2 * 1024 * 1024);
-    expect(Object.keys((await st.load()).manifest ?? {}).length).toBe(12000);
+    // Bytes, nicht Zeichen: Umlaute zählen doppelt
+    const umlaut: Manifest = {};
+    for (let i = 0; i < 6000; i++) umlaut[`r/ä${i}${"ö".repeat(100)}.md`] = entry(`r/ä${i}${"ö".repeat(100)}.md`);
+    const json = JSON.stringify(umlaut);
+    expect(json.length).toBeLessThan(2 * 1024 * 1024);
+    expect(new TextEncoder().encode(json).length).toBeGreaterThan(2 * 1024 * 1024);
+    warn.mockClear();
+    await st.save({ manifest: umlaut });
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(Object.keys((await st.load()).manifest ?? {}).length).toBe(6000);
   });
 });

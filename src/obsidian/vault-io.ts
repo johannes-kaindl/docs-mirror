@@ -1,9 +1,11 @@
 import type { App } from "obsidian";
 import type { VaultPort } from "../core/plan";
+import { checkRelPath } from "../vendor/kit/rel-path";
 
 /** Präfix der Temp-Namen, die `applyPlan` vergibt (`.dmr-tmp-N`); solche Namen ohne `/` liegen im Temp-Verzeichnis. */
 const TEMP_PREFIX = ".dmr-tmp-";
 
+/** Vorsicht: gilt für Namen ohne `/`. */
 const isTempName = (p: string): boolean => p.startsWith(TEMP_PREFIX) && !p.includes("/");
 
 function toArrayBuffer(data: Uint8Array): ArrayBuffer {
@@ -20,7 +22,32 @@ function toArrayBuffer(data: Uint8Array): ArrayBuffer {
 export function createVaultPort(app: App, tempDir: string): VaultPort {
   const adapter = app.vault.adapter;
   const configDir = app.vault.configDir;
-  const real = (p: string): string => (isTempName(p) ? `${tempDir}/${p}` : p);
+
+  // Das Temp-Verzeichnis ist das einzige, das `clearTemp` anfasst: es muss ein echter Unterpfad von configDir sein.
+  const tc = checkRelPath(tempDir);
+  if (!tc.ok || !tempDir.startsWith(`${configDir}/`)) {
+    throw new Error(`docs-mirror: temp directory "${tempDir}" must be a relative path below ${configDir}/`);
+  }
+
+  /** Schranke für jeden Vault-Pfad vor einem Adapteraufruf: `..`, absolut, `\`, NUL, leer und `.`-Segmente wirft. */
+  const safe = (p: string): string => {
+    const r = checkRelPath(p);
+    if (!r.ok) throw new Error(`docs-mirror: unsafe vault path "${p}" (${r.problem})`);
+    return p;
+  };
+  /** Zielpfad im Vault: wie `safe`, und kein Wurzelname im Temp-Schema (der würde als Temp-Datei gelesen). */
+  const target = (p: string): string => {
+    safe(p);
+    if (isTempName(p)) throw new Error(`docs-mirror: "${p}" is reserved for temporary files`);
+    return p;
+  };
+  const underConfig = (p: string): boolean => p === configDir || p.startsWith(`${configDir}/`);
+  /** Temp-Namen laufen über ihre eigene Prüfung (Präfix, kein `/`), alles andere über `safe`. */
+  const real = (p: string): string => (isTempName(p) ? `${tempDir}/${p}` : safe(p));
+  const tempOnly = (name: string): string => {
+    if (!isTempName(name)) throw new Error(`docs-mirror: "${name}" is not a temporary file name`);
+    return `${tempDir}/${name}`;
+  };
 
   async function walk(dir: string, out: string[]): Promise<void> {
     const l = await adapter.list(dir);
@@ -46,30 +73,44 @@ export function createVaultPort(app: App, tempDir: string): VaultPort {
       return new Uint8Array(await adapter.readBinary(real(path)));
     },
     async writeTemp(name, data, mtime) {
+      const path = tempOnly(name);
       await adapter.mkdir(tempDir);
-      await adapter.writeBinary(real(name), toArrayBuffer(data), { mtime });
+      await adapter.writeBinary(path, toArrayBuffer(data), { mtime });
     },
     async replace(tempName, path) {
-      if (await adapter.exists(path)) await adapter.remove(path);
-      await adapter.rename(real(tempName), path);
+      const to = target(path);
+      const from = tempOnly(tempName);
+      if (await adapter.exists(to)) await adapter.remove(to);
+      await adapter.rename(from, to);
     },
     async remove(path) {
       const p = real(path);
       if (await adapter.exists(p)) await adapter.remove(p);
     },
     async mkdirp(dir) {
-      await adapter.mkdir(dir);
+      await adapter.mkdir(target(dir));
     },
     async removeIfEmpty(dir) {
+      target(dir);
+      if (underConfig(dir)) throw new Error(`docs-mirror: refusing to remove "${dir}" (inside ${configDir})`);
       const s = await adapter.stat(dir);
       if (s?.type !== "folder") return;
-      const l = await adapter.list(dir);
-      if (l.files.length === 0 && l.folders.length === 0) await adapter.rmdir(dir, true);
+      const isEmpty = async (): Promise<boolean> => {
+        const l = await adapter.list(dir);
+        return l.files.length === 0 && l.folders.length === 0;
+      };
+      if (!(await isEmpty())) return;
+      // Zweite Prüfung unmittelbar vor dem rekursiven rmdir: hält das Fenster für eine neu angelegte Datei klein.
+      if (!(await isEmpty())) return;
+      await adapter.rmdir(dir, true);
     },
     async clearTemp() {
       if (!(await adapter.exists(tempDir))) return;
       const l = await adapter.list(tempDir);
-      for (const f of l.files) await adapter.remove(f);
+      for (const f of l.files) {
+        const base = f.slice(f.lastIndexOf("/") + 1);
+        if (base.startsWith(TEMP_PREFIX)) await adapter.remove(f);
+      }
     },
   };
 }

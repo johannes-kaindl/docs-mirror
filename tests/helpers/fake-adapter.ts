@@ -2,9 +2,13 @@
  *  `rename` wirft bei bestehendem Ziel und bei fehlendem Elternordner, `writeBinary` wirft ohne Elternordner,
  *  `remove` wirft bei fehlender Datei und auf einem Ordner, `rmdir(path, false)` wirft immer (auch auf einem leeren
  *  Ordner), `stat` liefert `null` bei fehlendem Pfad, `mkdir` legt tief an und verträgt einen vorhandenen Ordner.
+ *  Einschränkung: `exists`/`stat` sind hier case- und NFD-sensitiv (APFS ist es nicht, siehe Messung).
+ *  `onList(path, n)` wird bei jedem `list` mit der laufenden Nummer des Aufrufs für diesen Pfad gerufen, nach dem Berechnen der Antwort, vor ihrer Rückgabe
+ *  (Hook, um zwischen zwei Aufrufen eine Datei anzulegen).
  *  `calls` hält jeden Aufruf in Reihenfolge (`op:arg`). */
 export interface FakeAdapter {
   calls: string[];
+  onList?: (path: string, n: number) => void;
   files: Map<string, { data: Uint8Array; mtime: number }>;
   folders: Set<string>;
   exists(p: string): Promise<boolean>;
@@ -22,6 +26,7 @@ const parentOf = (p: string): string => p.split("/").slice(0, -1).join("/");
 
 export function fakeAdapter(seed: { files?: Record<string, string>; folders?: string[] } = {}): FakeAdapter {
   const calls: string[] = [];
+  const listCount = new Map<string, number>();
   const files = new Map<string, { data: Uint8Array; mtime: number }>();
   const folders = new Set<string>([""]);
   const enc = new TextEncoder();
@@ -52,7 +57,11 @@ export function fakeAdapter(seed: { files?: Record<string, string>; folders?: st
     },
     list(p) {
       calls.push(`list:${p}`);
-      return folders.has(p) ? Promise.resolve(children(p)) : Promise.reject(new Error(`ENOENT: scandir ${p}`));
+      listCount.set(p, (listCount.get(p) ?? 0) + 1);
+      if (!folders.has(p)) return Promise.reject(new Error(`ENOENT: scandir ${p}`));
+      const res = children(p);
+      this.onList?.(p, listCount.get(p) ?? 0);
+      return Promise.resolve(res);
     },
     readBinary(p) {
       calls.push(`readBinary:${p}`);
