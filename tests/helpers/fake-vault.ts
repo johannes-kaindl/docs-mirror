@@ -12,6 +12,8 @@ export interface FakeVaultOptions {
   normalizationInsensitive?: boolean;
   /** Pfade, die `list()` verschweigt, die aber per `stat`/`read` auffindbar sind (Lücke zwischen list und stat). */
   unlisted?: string[];
+  /** `writeTemp` legt nur die ersten Bytes ab (Platte voll, Abbruch im Schreiben): die Temp-Prüfung muss das fangen. */
+  truncateTemp?: boolean;
 }
 
 interface FileRec { name: string; data: Uint8Array; mtime: number }
@@ -21,6 +23,8 @@ const toBytes = (c: string | Uint8Array): Uint8Array => (typeof c === "string" ?
 
 export interface FakeVault extends VaultPort {
   calls: { read: string[]; stat: string[]; ops: string[] };
+  /** Jede Änderung am Ziel in Reihenfolge (`replace`): so lässt sich prüfen, dass nie ein unvollständiger Inhalt am Ziel lag. */
+  writes: { path: string; data: Uint8Array }[];
   /** Legt eine Datei an (Elternordner entstehen mit). */
   put(path: string, content: string | Uint8Array, mtime?: number): void;
   /** Legt einen Ordner an. */
@@ -46,6 +50,7 @@ export function fakeVault(opts: FakeVaultOptions = {}): FakeVault {
   const temps = new Map<string, { data: Uint8Array; mtime: number }>();
   const failures: { op: string; path?: string }[] = [];
   const calls = { read: [] as string[], stat: [] as string[], ops: [] as string[] };
+  const writes: { path: string; data: Uint8Array }[] = [];
 
   const maybeFail = (op: string, path: string): void => {
     if (failures.some((f) => f.op === op && (f.path === undefined || key(f.path) === key(path)))) {
@@ -63,6 +68,7 @@ export function fakeVault(opts: FakeVaultOptions = {}): FakeVault {
 
   return {
     calls,
+    writes,
     put(path, content, mtime = 1000) {
       ensureFolders(parentOf(path));
       const existing = files.get(key(path));
@@ -78,7 +84,7 @@ export function fakeVault(opts: FakeVaultOptions = {}): FakeVault {
     tempNames: () => [...temps.keys()],
     failOn(op, path) { failures.push({ op, path }); },
     clearFailures() { failures.length = 0; },
-    resetCalls() { calls.read.length = 0; calls.stat.length = 0; calls.ops.length = 0; },
+    resetCalls() { calls.read.length = 0; calls.stat.length = 0; calls.ops.length = 0; writes.length = 0; },
 
     list() {
       maybeFail("list", "");
@@ -92,18 +98,22 @@ export function fakeVault(opts: FakeVaultOptions = {}): FakeVault {
       const f = files.get(key(path));
       if (f) return Promise.resolve({ kind: "file" as const, size: f.data.byteLength, mtime: f.mtime });
       if (folders.has(key(path))) return Promise.resolve({ kind: "folder" as const, size: 0, mtime: 0 });
+      const t = temps.get(path);
+      if (t) return Promise.resolve({ kind: "file" as const, size: t.data.byteLength, mtime: t.mtime });
       return Promise.resolve(null);
     },
     read(path) {
       calls.read.push(path);
       maybeFail("read", path);
       const f = files.get(key(path));
-      return f ? Promise.resolve(f.data) : Promise.reject(new Error(`ENOENT: ${path}`));
+      if (f) return Promise.resolve(f.data);
+      const t = temps.get(path);
+      return t ? Promise.resolve(t.data) : Promise.reject(new Error(`ENOENT: ${path}`));
     },
     writeTemp(name, data, mtime) {
       calls.ops.push(`writeTemp:${name}`);
       maybeFail("writeTemp", name);
-      temps.set(name, { data, mtime });
+      temps.set(name, { data: opts.truncateTemp ? data.slice(0, Math.max(0, data.byteLength - 1)) : data, mtime });
       return Promise.resolve();
     },
     replace(tempName, path) {
@@ -114,6 +124,7 @@ export function fakeVault(opts: FakeVaultOptions = {}): FakeVault {
       if (folders.has(key(path))) return Promise.reject(new Error(`EISDIR: ${path}`));
       const existing = files.get(key(path));
       files.set(key(path), { name: existing?.name ?? path, data: t.data, mtime: t.mtime });
+      writes.push({ path, data: t.data });
       temps.delete(tempName);
       return Promise.resolve();
     },
@@ -121,6 +132,7 @@ export function fakeVault(opts: FakeVaultOptions = {}): FakeVault {
       calls.ops.push(`remove:${path}`);
       maybeFail("remove", path);
       files.delete(key(path));
+      temps.delete(path);
       return Promise.resolve();
     },
     mkdirp(dir) {
