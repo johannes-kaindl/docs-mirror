@@ -28,24 +28,38 @@ export const DEFAULT_SETTINGS: DocsMirrorSettings = {
   syncOnStart: false,
 };
 
-/** Zeilen- oder kommagetrennter Text → getrimmte, eindeutige, nicht leere Einträge. */
-export function parseList(text: string): string[] {
+/** Trimmt, entfernt Leeres und Doppeltes, behält die Reihenfolge. */
+function cleanItems(items: Iterable<string>): string[] {
   const out: string[] = [];
-  for (const part of text.split(/[\r\n,]+/)) {
-    const item = part.trim();
+  for (const x of items) {
+    const item = x.trim();
     if (item !== "" && !out.includes(item)) out.push(item);
   }
   return out;
 }
 
+/** Zeilen- oder kommagetrennter Text → getrimmte, eindeutige, nicht leere Einträge.
+ *  Kommas innerhalb geschweifter Klammern trennen nicht (Brace-Globs wie `**\/{docs,doc}`). */
+export function parseList(text: string): string[] {
+  const parts: string[] = [];
+  let depth = 0;
+  let cur = "";
+  for (const ch of text) {
+    if (ch === "{") depth++;
+    else if (ch === "}" && depth > 0) depth--;
+    if (ch === "\n" || ch === "\r" || (ch === "," && depth === 0)) {
+      parts.push(cur);
+      cur = "";
+      if (ch !== ",") depth = 0;
+    } else cur += ch;
+  }
+  parts.push(cur);
+  return cleanItems(parts);
+}
+
 function list(raw: unknown, fallback: string[]): string[] {
   if (!Array.isArray(raw)) return fallback.slice();
-  const out: string[] = [];
-  for (const x of raw) {
-    if (typeof x !== "string") continue;
-    const item = x.trim();
-    if (item !== "" && !out.includes(item)) out.push(item);
-  }
+  const out = cleanItems(raw.filter((x): x is string => typeof x === "string"));
   return out.length > 0 ? out : fallback.slice();
 }
 

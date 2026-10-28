@@ -22,6 +22,12 @@ describe("loadSettings", () => {
     expect(loadSettings(undefined)).toEqual(DEFAULT_SETTINGS);
   });
 
+  it("null, String und Array liefern die Standardwerte ohne Wurf", () => {
+    expect(loadSettings(null)).toEqual(DEFAULT_SETTINGS);
+    expect(loadSettings("x")).toEqual(DEFAULT_SETTINGS);
+    expect(loadSettings([])).toEqual(DEFAULT_SETTINGS);
+  });
+
   it("falscher Typ setzt nur dieses Feld zurück", () => {
     const s = loadSettings({ maxFileBytes: "5", syncOnStart: true });
     expect(s.maxFileBytes).toBe(DEFAULT_SETTINGS.maxFileBytes);
@@ -64,6 +70,14 @@ describe("parseList", () => {
   it("trennt an Zeilen und Kommas, trimmt, entfernt Leeres und Doppeltes", () => {
     expect(parseList(" a, b\n\nc ,a\r\n d ")).toEqual(["a", "b", "c", "d"]);
   });
+  it("trennt nicht an Kommas innerhalb geschweifter Klammern", () => {
+    expect(parseList("**/{docs,doc}, x")).toEqual(["**/{docs,doc}", "x"]);
+    expect(parseList("a/{b,{c,d}},e\nf")).toEqual(["a/{b,{c,d}}", "e", "f"]);
+  });
+  it("einfache Fälle, Duplikate, Leerzeilen", () => {
+    expect(parseList("a, b\nc")).toEqual(["a", "b", "c"]);
+    expect(parseList("a\n\n\nb\na")).toEqual(["a", "b"]);
+  });
   it("leerer Text liefert eine leere Liste", () => {
     expect(parseList("  \n ,")).toEqual([]);
   });
@@ -88,6 +102,23 @@ describe("validateRoot", () => {
   });
   it("Leerzeichen im Pfad sind erlaubt", () => {
     expect(validateRoot("/a b")).toEqual({ ok: true, root: "/a b" });
+  });
+  it("Wurzel und Doppel-Schrägstrich", () => {
+    expect(validateRoot("/")).toEqual({ ok: true, root: "/" });
+    expect(validateRoot("//")).toEqual({ ok: true, root: "/" });
+  });
+  it("Trimmen von Tab und Leerzeichen", () => {
+    expect(validateRoot(" /a/b ")).toEqual({ ok: true, root: "/a/b" });
+    expect(validateRoot("\t/a/b\t")).toEqual({ ok: true, root: "/a/b" });
+    expect(validateRoot(" \t ")).toEqual({ ok: false, problem: "empty" });
+  });
+  it("Laufwerkswurzel", () => {
+    expect(validateRoot("C:\\")).toEqual({ ok: true, root: "C:\\" });
+    expect(validateRoot("C:/")).toEqual({ ok: true, root: "C:/" });
+  });
+  it("UNC-Pfad und Laufwerk ohne Trenner gelten als relativ", () => {
+    expect(validateRoot("\\\\srv\\x")).toEqual({ ok: false, problem: "relative" });
+    expect(validateRoot("C:")).toEqual({ ok: false, problem: "relative" });
   });
   it("Laufwerksbuchstabe gilt als absolut", () => {
     expect(validateRoot("C:\\Users\\x\\")).toEqual({ ok: true, root: "C:\\Users\\x" });
