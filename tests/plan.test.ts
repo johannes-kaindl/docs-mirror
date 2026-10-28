@@ -311,6 +311,86 @@ describe("buildPlan", () => {
     expect(p.totalBytes).toBe(5 + 4 + 2);
   });
 
+  it("verwaist, im Vault unverändert: delete ohne Lesen, mit vaultPath", async () => {
+    const v = fakeVault();
+    v.put("a/old.md", "o", 2000);
+    const c = setup({ "a/keep.md": { content: "k" } }, manifestOf(entry("a/old.md", "o")), {}, v);
+    v.resetCalls();
+    const p = await c.plan();
+    expect(p.items.find((i) => i.cls === "delete")).toMatchObject({ path: "a/old.md", vaultPath: "a/old.md" });
+    expect(v.calls.read).toEqual([]);
+  });
+
+  it("verwaist, im Vault verändert: behalten als vault-only/orphan-modified, in forget, kein delete", async () => {
+    const v = fakeVault();
+    v.put("a/old.md", "o-meine-Notizen", 2500);
+    const c = setup({ "a/keep.md": { content: "k" } }, manifestOf(entry("a/old.md", "o")), {}, v);
+    const p = await c.plan();
+    expect(p.counts.delete).toBe(0);
+    expect(p.items.find((i) => i.path === "a/old.md")).toMatchObject({ cls: "vault-only", reason: "orphan-modified", vaultPath: "a/old.md" });
+    expect(p.counts["vault-only"]).toBe(1);
+    expect(p.forget).toEqual(["a/old.md"]);
+  });
+
+  it("verwaist, nur Vault-Zeit anders, Hash gleich: delete", async () => {
+    const v = fakeVault();
+    v.put("a/old.md", "o", 2999);
+    const c = setup({ "a/keep.md": { content: "k" } }, manifestOf(entry("a/old.md", "o")), {}, v);
+    const p = await c.plan();
+    expect(clsOf(p, "a/old.md")).toBe("delete");
+    expect(v.calls.read).toEqual(["a/old.md"]);
+  });
+
+  it("list verschweigt die Datei, stat findet sie: Inhalt gleich gibt Aufnahme, nie new", async () => {
+    const v = fakeVault({ unlisted: ["a/x.md"] });
+    v.put("a/x.md", "abc", 3000);
+    const c = setup({ "a/x.md": { content: "abc" } }, {}, {}, v);
+    const p = await c.plan();
+    expect(p.items[0].cls).toBe("unchanged");
+    expect(p.items[0].entry?.hash).toBe(hash("abc"));
+  });
+
+  it("list verschweigt die Datei, Inhalt abweichend: conflict, nie new", async () => {
+    const v = fakeVault({ unlisted: ["a/x.md"] });
+    v.put("a/x.md", "abd", 3000);
+    const c = setup({ "a/x.md": { content: "abc" } }, {}, {}, v);
+    const p = await c.plan();
+    expect(p.items[0]).toMatchObject({ cls: "conflict", vaultPath: "a/x.md" });
+  });
+
+  it("Case-Umbenennung (Manifest Foo.md, Quelle nur foo.md): kein delete, foo.md bleibt case-collision", async () => {
+    const v = fakeVault({ caseInsensitive: true });
+    v.put("a/Foo.md", "f", 2000);
+    const c = setup({ "a/foo.md": { content: "f" } }, manifestOf(entry("a/Foo.md", "f")), {}, v);
+    const p = await c.plan();
+    expect(p.counts.delete).toBe(0);
+    expect(p.forget).toEqual([]);
+    expect(p.items).toEqual([expect.objectContaining({ path: "a/foo.md", cls: "conflict", reason: "case-collision", vaultPath: "a/Foo.md" })]);
+  });
+
+  it("mirrorBytes: Summe über alle Items mit Quelle, Konflikte und unverändert zählen mit", async () => {
+    const v = fakeVault();
+    v.put("a/same.md", "abc", 2000);
+    v.put("a/conf.md", "fremd", 1);
+    const c = setup(
+      { "a/new.md": { content: "12345" }, "a/same.md": { content: "abc" }, "a/conf.md": { content: "ganzanders" } },
+      manifestOf(entry("a/same.md", "abc")),
+      {},
+      v,
+    );
+    const p = await c.plan();
+    expect(p.totalBytes).toBe(5);
+    expect(p.mirrorBytes).toBe(5 + 3 + 10);
+  });
+
+  it("vaultPath trägt den echten Vault-Namen bei changed", async () => {
+    const v = fakeVault({ normalizationInsensitive: true });
+    v.put("a/Cafe\u0301.md", "abc", 2000);
+    const c = setup({ "a/Caf\u00e9.md": { content: "abcd" } }, manifestOf(entry("a/Caf\u00e9.md", "abc")), {}, v);
+    const p = await c.plan();
+    expect(p.items[0]).toMatchObject({ cls: "changed", vaultPath: "a/Cafe\u0301.md" });
+  });
+
   it("reicht skipped durch", async () => {
     const c = setup({ "a/x.md": { content: "x" } }, {}, { skipped: { symlinks: 2, tooBig: 1, otherType: 0 } });
     expect((await c.plan()).skipped).toEqual({ symlinks: 2, tooBig: 1, otherType: 0 });

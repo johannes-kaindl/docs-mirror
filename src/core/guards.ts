@@ -33,7 +33,7 @@ export function checkGuards(
   ) confirm.push("threshold");
 
   if (ctx.fingerprintChanged) confirm.push("settings-changed");
-  if (plan.totalBytes > s.maxTotalBytes) confirm.push("total-size");
+  if (plan.mirrorBytes > s.maxTotalBytes) confirm.push("total-size");
   if (plan.counts.conflict > 0) confirm.push("conflicts");
   return { blocked: null, confirm };
 }

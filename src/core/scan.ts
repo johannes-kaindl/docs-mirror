@@ -41,7 +41,7 @@ export interface ScanResult {
 const nfc = (s: string): string => s.normalize("NFC");
 /** NFC im Schlüssel ist bewusst redundant zu `walk` (Defense in Depth): die Kollisionslogik soll auch dann halten, wenn
  *  ein Aufrufer Rohpfade übergibt. */
-const foldKey = (s: string): string => nfc(s).toLocaleLowerCase("en");
+export const foldKey = (s: string): string => nfc(s).toLocaleLowerCase("en");
 const join = (dir: string, name: string): string => (dir === "" ? name : `${dir}/${name}`);
 
 function extOf(name: string): string {

@@ -10,6 +10,8 @@ import type { VaultPort } from "../../src/core/plan";
 export interface FakeVaultOptions {
   caseInsensitive?: boolean;
   normalizationInsensitive?: boolean;
+  /** Pfade, die `list()` verschweigt, die aber per `stat`/`read` auffindbar sind (Lücke zwischen list und stat). */
+  unlisted?: string[];
 }
 
 interface FileRec { name: string; data: Uint8Array; mtime: number }
@@ -80,7 +82,9 @@ export function fakeVault(opts: FakeVaultOptions = {}): FakeVault {
 
     list() {
       maybeFail("list", "");
-      return Promise.resolve([...files.values()].map((f) => f.name).sort());
+      return Promise.resolve(
+        [...files.values()].filter((f) => !opts.unlisted?.some((u) => key(u) === key(f.name))).map((f) => f.name).sort(),
+      );
     },
     stat(path) {
       calls.stat.push(path);

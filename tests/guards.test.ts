@@ -8,6 +8,7 @@ function planOf(counts: Partial<Record<PlanClass, number>> = {}, over: Partial<P
     items: [],
     counts: { new: 0, changed: 0, unchanged: 0, delete: 0, "vault-modified": 0, conflict: 0, "vault-only": 0, ...counts },
     totalBytes: 0,
+    mirrorBytes: 0,
     skipped: { symlinks: 0, tooBig: 0, otherType: 0 },
     sourceState: "ok",
     unchecked: 0,
@@ -65,8 +66,14 @@ describe("checkGuards", () => {
   });
 
   it("Gesamtgröße über der Grenze fragt, genau auf der Grenze nicht", () => {
-    expect(checkGuards(planOf({}, { totalBytes: S.maxTotalBytes + 1 }), ctx(), S).confirm).toEqual(["total-size"]);
-    expect(checkGuards(planOf({}, { totalBytes: S.maxTotalBytes }), ctx(), S).confirm).toEqual([]);
+    expect(checkGuards(planOf({}, { mirrorBytes: S.maxTotalBytes + 1 }), ctx(), S).confirm).toEqual(["total-size"]);
+    expect(checkGuards(planOf({}, { mirrorBytes: S.maxTotalBytes }), ctx(), S).confirm).toEqual([]);
+  });
+
+  it("viele kleine Läufe: kleiner Zuwachs, aber gespiegelter Vault über der Grenze fragt", () => {
+    const r = checkGuards(planOf({ new: 1 }, { totalBytes: 10, mirrorBytes: S.maxTotalBytes + 5 }), ctx(), S);
+    expect(r.confirm).toEqual(["total-size"]);
+    expect(checkGuards(planOf({ new: 1 }, { totalBytes: S.maxTotalBytes + 5, mirrorBytes: 10 }), ctx(), S).confirm).toEqual([]);
   });
 
   it("ein Konflikt im Plan fragt", () => {
@@ -75,7 +82,7 @@ describe("checkGuards", () => {
 
   it("Gründe stehen in fester Reihenfolge", () => {
     const r = checkGuards(
-      planOf({ delete: 30, conflict: 2 }, { totalBytes: S.maxTotalBytes + 1 }),
+      planOf({ delete: 30, conflict: 2 }, { mirrorBytes: S.maxTotalBytes + 1 }),
       ctx({ hadManifest: false, manifestSize: 50, fingerprintChanged: true }),
       S,
     );
@@ -87,7 +94,7 @@ describe("checkGuards", () => {
     ["empty", "source-empty"],
   ] as const)("Quelle %s sperrt und hat Vorrang vor allem anderen", (state, blocked) => {
     const r = checkGuards(
-      planOf({ delete: 30, conflict: 2 }, { sourceState: state, totalBytes: S.maxTotalBytes + 1 }),
+      planOf({ delete: 30, conflict: 2 }, { sourceState: state, mirrorBytes: S.maxTotalBytes + 1 }),
       ctx({ hadManifest: false, fingerprintChanged: true }),
       S,
     );
