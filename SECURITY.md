@@ -14,11 +14,14 @@ Please do **not** report security vulnerabilities through public issues. Report 
 
 ## Data Handling / Scope
 
-Docs Mirror is a fully local plugin:
+Docs Mirror is a desktop-only plugin that works with files on the local machine:
 
+- **Reads the configured source folders** (the `docs` folders of your repos) from disk through Node `fs`. Reading is strictly read-only; the plugin never writes into a source folder.
+- **Does not follow symlinks** in the source folders.
+- **Writes mirrored files only into its own mirror vault**, through the Obsidian vault API, plus its own settings.
+- **Deletes or overwrites only files it mirrored itself**, tracked in its manifest. Files it did not create are never touched.
+- **Safeguards:** the first run and runs that delete many files ask for confirmation first. Nothing is deleted when a source folder is unreachable or empty. An aborted run leaves no half-written file behind.
 - **No network access.** The plugin makes no outbound requests.
 - **No telemetry, no analytics, no remote logging.**
-- **Reads only the folder tree** of the vault through the Obsidian API, never file contents.
-- **Writes only its own settings** (`data.json`) and, if you turn the opt-in switch on, the excluded-folders list of the Obsidian Sync core plugin on the device it runs on. It never deletes, moves or renames files or folders.
 
 If you have questions about the plugin's data handling beyond what is described here, the same private contact applies.

@@ -24,7 +24,7 @@ Contributions of all sizes are welcome: bug reports, fixes, docs and features. B
 
 Run `npm run gate` before you commit. It runs lint (the same ESLint rules as the Obsidian community review, zero warnings), typecheck for source, tests and scripts, the Vitest suite, the pure-core check and the build. New behaviour arrives with tests; the project is test-driven.
 
-For changes that touch the file explorer, run the GUI smoke as well (`docs/SMOKE.md`).
+For changes that touch the GUI, run the GUI smoke as well (`npm run smoke:gui`), once it is set up.
 
 ## Architecture constraint
 
