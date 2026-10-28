@@ -32,4 +32,13 @@ describe("parseManifest", () => {
       expect(parseManifest(raw)).toEqual({ manifest: {}, dropped: 0 });
     }
   });
+
+  it("verwirft unsichere oder nicht-NFC-Pfade und zählt sie", () => {
+    const bad = ["../x.md", "/abs/x.md", "a\\b.md", "a/./b.md", "Ü.md".normalize("NFD"), "__proto__"];
+    const raw: Record<string, unknown> = { "ok.md": { ...good, path: "ok.md" } };
+    for (const p of bad) Object.defineProperty(raw, p, { value: { ...good, path: p }, enumerable: true });
+    const r = parseManifest(raw);
+    expect(Object.keys(r.manifest)).toEqual(["ok.md"]);
+    expect(r.dropped).toBe(bad.length);
+  });
 });

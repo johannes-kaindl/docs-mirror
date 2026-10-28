@@ -1,3 +1,5 @@
+import { checkRelPath } from "../vendor/kit/rel-path";
+
 /** Gerätelokales Manifest: was das Plugin gespiegelt hat. Nur Einträge darin darf das Plugin löschen. */
 export interface ManifestEntry {
   /** Pfad im Vault (relativ zum Zielordner), gleich dem Schlüssel. */
@@ -20,6 +22,7 @@ function isEntry(key: string, e: unknown): e is ManifestEntry {
   const o = e as Record<string, unknown>;
   return (
     typeof o.path === "string" && o.path !== "" && o.path === key &&
+    key !== "__proto__" && checkRelPath(o.path).ok && o.path === o.path.normalize("NFC") &&
     count(o.srcSize) && count(o.srcMtime) && count(o.size) && count(o.mtime) &&
     typeof o.hash === "string" && o.hash !== ""
   );

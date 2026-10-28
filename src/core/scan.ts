@@ -25,14 +25,22 @@ export interface ScanResult {
   state: "ok" | "unreachable" | "empty";
   files: SourceFile[];
   skipped: { symlinks: number; tooBig: number; otherType: number };
-  /** Gruppen von Pfaden, die dasselbe Ziel ergäben (alle Mitglieder, keiner gewinnt). */
+  /** Gruppen von Pfaden, die dasselbe Ziel ergäben (alle Mitglieder, keiner gewinnt). Die Mitglieder tragen die
+   *  ORIGINALNAMEN der Quelle (vor NFC), damit eine NFD/NFC-Kollision im selben Ordner zwei unterscheidbare Pfade zeigt.
+   *  Task 6 vergleicht zum Abgleich mit NFC und Kleinschreibung. */
   collisions: string[][];
+  /** Ordner, deren `readdir` geworfen hat (NFC-Pfad). */
   unreadable: string[];
+  /** true, sobald `unreadable` nicht leer ist. Task 6 darf bei incomplete keine Löschung ableiten;
+   *  Manifest-Einträge unter einem unreadable-Präfix gelten als „nicht geprüft“. */
+  incomplete: boolean;
   /** Muster, die die Kit-Engine nicht liest; der Scan läuft ohne sie weiter. */
   invalidPatterns: string[];
 }
 
 const nfc = (s: string): string => s.normalize("NFC");
+/** NFC im Schlüssel ist bewusst redundant zu `walk` (Defense in Depth): die Kollisionslogik soll auch dann halten, wenn
+ *  ein Aufrufer Rohpfade übergibt. */
 const foldKey = (s: string): string => nfc(s).toLocaleLowerCase("en");
 const join = (dir: string, name: string): string => (dir === "" ? name : `${dir}/${name}`);
 
@@ -58,10 +66,13 @@ export async function scanSource(
     skipped: { symlinks: 0, tooBig: 0, otherType: 0 },
     collisions: [],
     unreadable: [],
+    incomplete: false,
     invalidPatterns: parsed.invalid,
   };
 
-  async function walk(dir: string, inMatch: boolean, preloaded?: SourceEntry[]): Promise<void> {
+  const collected: { file: SourceFile; raw: string }[] = [];
+
+  async function walk(dir: string, rawDir: string, inMatch: boolean, preloaded?: SourceEntry[]): Promise<void> {
     let entries: SourceEntry[];
     try {
       entries = preloaded ?? (await port.readdir(dir));
@@ -74,6 +85,7 @@ export async function scanSource(
     for (const entry of entries) {
       const name = nfc(entry.name);
       const path = join(dir, name);
+      const rawPath = join(rawDir, entry.name);
       const skip = excluded.has(name) || (entry.kind === "dir" && name.startsWith(".") && !s.includeDotFolders);
       const isMatch = !inMatch && entry.kind !== "file" && matchIgnore(rules, path) !== null;
       // Ausgeschlossene Einträge bleiben in der Schleife, damit `tick` auch für sie läuft.
@@ -87,10 +99,10 @@ export async function scanSource(
         if (inMatch) {
           if (!extensions.has(extOf(name))) result.skipped.otherType++;
           else if (entry.size > s.maxFileBytes) result.skipped.tooBig++;
-          else result.files.push({ path, size: entry.size, mtime: entry.mtime });
+          else collected.push({ file: { path, size: entry.size, mtime: entry.mtime }, raw: rawPath });
         }
       } else {
-        await walk(path, inMatch || isMatch);
+        await walk(path, rawPath, inMatch || isMatch);
       }
       if (tick) await tick();
     }
@@ -103,22 +115,19 @@ export async function scanSource(
     result.state = "unreachable";
     return result;
   }
-  await walk("", false, rootEntries);
+  await walk("", "", false, rootEntries);
+  result.incomplete = result.unreadable.length > 0;
 
   // Kollisionen über die ganzen Zielpfade der gesammelten Dateien (fängt Datei- und Ordnerebene).
-  const groups = new Map<string, SourceFile[]>();
-  for (const f of result.files) {
-    const k = foldKey(f.path);
-    groups.set(k, [...(groups.get(k) ?? []), f]);
+  const groups = new Map<string, { file: SourceFile; raw: string }[]>();
+  for (const c of collected) {
+    const k = foldKey(c.file.path);
+    groups.set(k, [...(groups.get(k) ?? []), c]);
   }
-  const colliding = new Set<SourceFile>();
   for (const members of groups.values()) {
-    if (members.length > 1) {
-      result.collisions.push([...new Set(members.map((m) => m.path))]);
-      for (const m of members) colliding.add(m);
-    }
+    if (members.length > 1) result.collisions.push(members.map((m) => m.raw));
+    else result.files.push(members[0].file);
   }
-  if (colliding.size > 0) result.files = result.files.filter((f) => !colliding.has(f));
   if (result.files.length === 0) result.state = "empty";
   return result;
 }

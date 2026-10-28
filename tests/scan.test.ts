@@ -96,6 +96,10 @@ describe("scanSource", () => {
     const t = { [`r/docs/${"Ü".normalize("NFD")}.md`]: "1", "r/docs/Ü.md": "2" };
     const r = await scanSource(fakeSource(t), settings());
     expect(r.collisions).toHaveLength(1);
+    const g = r.collisions[0];
+    expect(g).toHaveLength(2);
+    expect(new Set(g).size).toBe(2);
+    expect(g.map((p) => p.normalize("NFC"))).toEqual(["r/docs/Ü.md", "r/docs/Ü.md"]);
     expect(r.files).toEqual([]);
   });
 
@@ -145,5 +149,22 @@ describe("scanSource", () => {
     await scanSource(fakeSource(tree), settings(), () => { n++; return Promise.resolve(); });
     // genau ein tick je gelesenem Eintrag, auch für node_modules und .claude (nie betreten)
     expect(n).toBe(16);
+  });
+
+  it("meldet incomplete, sobald ein Ordner unlesbar war", async () => {
+    const t = { "a/docs/x.md": "x", "b/docs/y.md": "y" };
+    expect((await scanSource(fakeSource(t, { failing: ["a/docs"] }), settings())).incomplete).toBe(true);
+    expect((await scanSource(fakeSource(t), settings())).incomplete).toBe(false);
+  });
+
+  it("Datei genau maxFileBytes ist erlaubt, +1 zählt tooBig", async () => {
+    const t = { "r/docs/exakt.md": 100, "r/docs/zuviel.md": 101 };
+    const r = await scanSource(fakeSource(t), settings({ maxFileBytes: 100 }));
+    expect(r.files.map((f) => f.path)).toEqual(["r/docs/exakt.md"]);
+    expect(r.skipped.tooBig).toBe(1);
+  });
+
+  it("trifft docs auf Tiefe 4", async () => {
+    expect(await paths({ "a/b/c/d/docs/x.md": "x" })).toEqual(["a/b/c/d/docs/x.md"]);
   });
 });
