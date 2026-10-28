@@ -224,6 +224,52 @@ describe("DocsMirrorPlugin: Start", () => {
     expect(runner!.calls).toEqual([]);
   });
 
+  it("der Startlauf überspringt, wenn schon ein Plan wartet, eine Bestätigung offen ist oder ein Lauf läuft", async () => {
+    const waitingS = setup({ data: { syncOnStart: true }, root: ROOT });
+    await waitingS.plugin.onload();
+    waitingS.layoutReady();
+    waitingS.runner!.pendingPlan = plan([item("a", "new", { src })]);
+    waitingS.flushTimers(); await settle();
+    expect(waitingS.runner!.calls).toEqual([]);
+
+    const running = setup({ data: { syncOnStart: true }, root: ROOT });
+    let release!: () => void;
+    running.runner!.next = () => new Promise<RunOutcome>((r) => { release = () => { r({ kind: "done", info: INFO, aborted: false }); }; });
+    await running.plugin.onload();
+    running.layoutReady();
+    const first = running.plugin.sync();
+    await settle();
+    running.flushTimers(); await settle();
+    expect(running.runner!.calls.map((c) => c.mode)).toEqual(["manual"]);
+    release(); await first;
+
+    const confirming = setup({ data: { syncOnStart: true }, root: ROOT });
+    const p = plan([item("a", "conflict", { src })]);
+    await confirming.plugin.onload();
+    confirming.layoutReady();
+    confirming.runner!.pendingPlan = p;
+    const ex = confirming.plugin.executePlan(new Set());
+    await settle();
+    confirming.runner!.pendingPlan = null;
+    confirming.flushTimers(); await settle();
+    expect(confirming.runner!.calls).toEqual([]);
+    (Modal.__last as any).contentEl.querySelectorAll("button")[0].__component.clickCB();
+    await ex;
+  });
+
+  it("nach onunload meldet ein fertig werdender Lauf nichts mehr", async () => {
+    const { plugin, runner } = setup({ root: ROOT });
+    let release!: () => void;
+    runner!.next = () => new Promise<RunOutcome>((r) => { release = () => { r({ kind: "done", info: INFO, aborted: false }); }; });
+    await plugin.onload();
+    const running = plugin.sync();
+    await settle();
+    plugin.onunload();
+    release();
+    await running;
+    expect(notices()).toEqual([]);
+  });
+
   it("onLayoutReady nach onunload startet keinen Timer", async () => {
     const { plugin, layoutReady, timers } = setup({ data: { syncOnStart: true }, root: ROOT });
     await plugin.onload();

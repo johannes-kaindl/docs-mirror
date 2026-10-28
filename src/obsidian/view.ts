@@ -31,6 +31,7 @@ export class DocsMirrorView extends ItemView {
   private bodyEl: HTMLElement | null = null;
   private shownIcon = "";
   private unsubscribe: (() => void) | null = null;
+  private readonly openState = new Map<string, boolean>();
   private readonly overwrite: OverwriteSelection = { all: false, paths: new Set() };
 
   constructor(leaf: WorkspaceLeaf, private readonly host: DocsMirrorHost) {
@@ -111,6 +112,7 @@ export class DocsMirrorView extends ItemView {
   private resetOverwrite(): void {
     this.overwrite.all = false;
     this.overwrite.paths.clear();
+    this.openState.clear();
   }
 
   /** Eine Auswahl überlebt das Rendern, aber nur für Zeilen, die der aktuelle Plan noch als überschreibbar zeigt. */
@@ -127,7 +129,7 @@ export class DocsMirrorView extends ItemView {
       empty.createDiv({ cls: "dmr-empty-desc", text: t("view.notConfiguredDesc") });
       return;
     }
-    if (vm.hasPlan) renderPlan(body, vm, this.overwrite);
+    if (vm.hasPlan) renderPlan(body, vm, this.overwrite, this.openState);
     if (vm.lastRun !== null) this.renderResult(body, vm);
   }
 

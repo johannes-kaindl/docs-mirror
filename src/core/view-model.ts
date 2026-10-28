@@ -81,6 +81,8 @@ const STATUS_LOOK: Record<RunStatus, { icon: StatusIcon; cls: StatusClass; key: 
 /** Reihenfolge der Gruppen in der Vorschau; `unchanged` steht als Zahl, nicht als Gruppe. */
 const GROUP_ORDER: PlanClass[] = ["new", "changed", "delete", "vault-modified", "conflict", "vault-only"];
 const OPEN: ReadonlySet<PlanClass> = new Set<PlanClass>(["delete", "vault-modified"]);
+/** Nur diese Schlüssel kann der Runner als Fehlertext eines Laufs speichern; alles andere (Altdaten, defekter Speicher) wird generisch. */
+const KNOWN_ERRORS: ReadonlySet<string> = new Set(["status.unreachable", "notice.blocked.empty", "notice.failed", "notice.partial"]);
 const COUNTER_KEYS: (keyof RunCounts)[] = ["created", "updated", "unchanged", "deleted", "overwritten", "skipped", "errors"];
 
 const GROUP_HINT: Partial<Record<PlanClass, StringKey>> = {
@@ -173,7 +175,7 @@ export function buildViewModel(input: ViewModelInput, fmt: { time(ms: number): s
     statusIcon: look.icon,
     statusClass: look.cls,
     lastRun: last === null ? null : `${t("view.lastRun")}: ${fmt.time(last.at)}`,
-    lastError: last !== null && !last.ok && last.error !== undefined ? t(last.error as StringKey) : null,
+    lastError: last !== null && !last.ok && last.error !== undefined ? t(KNOWN_ERRORS.has(last.error) ? (last.error as StringKey) : "notice.failed") : null,
     counters: last === null ? null : last.counts,
     counterRows: last === null ? [] : COUNTER_KEYS.map((key) => ({ key, label: t(`count.${key}`), value: last.counts[key] })),
     hasPlan: input.plan !== null,

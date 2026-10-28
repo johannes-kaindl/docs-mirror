@@ -42,6 +42,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
   private progress: { done: number; total: number } | null = null;
   private waitingReasons: ConfirmReason[] = [];
   private abort: AbortController | null = null;
+  private runSource: ReturnType<typeof createSourcePort> | null = null;
   private startupTimer: number | null = null;
   private unloaded = false;
   private warnedLarge = false;
@@ -61,7 +62,8 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
 
     const tempDir = `${this.app.vault.configDir}/plugins/${this.manifest.id}/tmp`;
     // Die Quelle hängt an der Wurzel von jetzt, nicht an der beim Start: ein Wurzelwechsel gilt ab dem nächsten Lauf.
-    const source = (): ReturnType<typeof createSourcePort> => createSourcePort(this.root);
+    // Die Wurzel gilt je Lauf: `perform` baut den Quellanschluss einmal; ein Wurzelwechsel mitten im Lauf wirkt erst im nächsten.
+    const source = (): ReturnType<typeof createSourcePort> => this.runSource ?? createSourcePort(this.root);
     this.runner = this.makeRunner({
       source: { readdir: (rel) => source().readdir(rel) },
       readSource: (path) => source().readFile(path),
@@ -83,7 +85,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
     if (this.settings.syncOnStart) {
       this.app.workspace.onLayoutReady(() => {
         if (this.unloaded) return;
-        this.startupTimer = this.timers.set(() => { this.startupTimer = null; if (this.unloaded) return; void this.perform("startup", (s, p) => this.runner.run("startup", s, p)); }, STARTUP_DELAY_MS);
+        this.startupTimer = this.timers.set(() => { this.startupTimer = null; if (this.unloaded || this.running || this.confirming || this.runner.pending() !== null) return; void this.perform("startup", (s, p) => this.runner.run("startup", s, p)); }, STARTUP_DELAY_MS);
       });
     }
   }
@@ -215,6 +217,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
     }
     const controller = new AbortController();
     this.abort = controller;
+    this.runSource = createSourcePort(this.root);
     this.running = true;
     this.progress = null;
     this.notify();
@@ -225,8 +228,9 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
       });
       await this.settleOutcome(outcome, mode);
     } catch {
-      new Notice(t("notice.failed"));
+      if (!this.unloaded) new Notice(t("notice.failed"));
     } finally {
+      this.runSource = null;
       this.running = false;
       this.abort = null;
       this.progress = null;
@@ -235,6 +239,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
   }
 
   private async settleOutcome(outcome: RunOutcome, mode: "manual" | "startup"): Promise<void> {
+    if (this.unloaded) return;
     const manual = mode === "manual";
     switch (outcome.kind) {
       case "busy":

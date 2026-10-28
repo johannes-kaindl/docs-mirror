@@ -209,6 +209,25 @@ describe("DocsMirrorView", () => {
     expect(all(all(root(), ".dmr-result")[0], "h3")[0].textContent).toBe("Last run: T99");
   });
 
+  it("manuell auf- oder zugeklappte Gruppen bleiben beim nächsten Rendern so, und fallen mit dem Plan", async () => {
+    const items = [item("a/n.md", "new", { src }), item("a/d.md", "delete")];
+    const { view, root, set } = setup({ status: "waiting", waiting: true, plan: plan(items) });
+    await view.onOpen();
+    const det = (label: RegExp): any => all(root(), "details").find((d: any) => label.test(d.children[0].textContent));
+    const toggle = (d: any, open: boolean): void => { d.open = open; d.dispatchEvent({ type: "toggle" }); };
+    expect(det(/new/).getAttribute("open")).toBeNull();
+    expect(det(/delete/).getAttribute("open")).not.toBeNull();
+    toggle(det(/new/), true);
+    toggle(det(/delete/), false);
+    set({ progress: { done: 1, total: 2 } });
+    expect(det(/new/).getAttribute("open")).not.toBeNull();
+    expect(det(/delete/).getAttribute("open")).toBeNull();
+    set({ status: "current", waiting: false, plan: null });
+    set({ status: "waiting", waiting: true, plan: plan(items) });
+    expect(det(/new/).getAttribute("open")).toBeNull();
+    expect(det(/delete/).getAttribute("open")).not.toBeNull();
+  });
+
   it("fehlgeschlagener Lauf zeigt den Grund als Text mit Fehlerklasse", async () => {
     const { view, root } = setup({ status: "error", last: { ...INFO, ok: false, error: "notice.failed" } });
     await view.onOpen();

@@ -29,6 +29,7 @@ function fakeHost(over: Partial<DocsMirrorSettings> = {}, root = ""): FakeHost {
 }
 
 const MB = 1024 * 1024;
+const HINT = "The source root cannot be cleared; to stop syncing, turn off the start sync and do not run it.";
 const tick = (): Promise<void> => new Promise((r) => setTimeout(r, 0));
 
 function open(h: FakeHost = fakeHost()) {
@@ -149,14 +150,16 @@ describe("Settings-Tab: Textfelder speichern bei blur, nicht je Tastendruck", ()
     expect(h.saved).toEqual([{ maxFileBytes: Math.round(2.5 * MB) }, { maxTotalBytes: 100 * MB }]);
   });
 
-  it("Schwelle: ganze Zahl ab 0", async () => {
+  it("Schwelle: ganze Zahl von 1 bis 1e9", async () => {
     const { h, type } = open();
-    await type("Confirmation threshold", "0");
+    await type("Confirmation threshold", "1");
     await type("Confirmation threshold", "12");
-    expect(h.saved).toEqual([{ deleteThresholdFiles: 0 }, { deleteThresholdFiles: 12 }]);
+    await type("Confirmation threshold", "1000000000");
+    expect(h.saved).toEqual([{ deleteThresholdFiles: 1 }, { deleteThresholdFiles: 12 }, { deleteThresholdFiles: 1e9 }]);
   });
 
   it.each([
+    ["Confirmation threshold", "0"], ["Confirmation threshold", "1000000001"], ["Largest file", "2000000"], ["Total size limit", "0.0000001"],
     ["Largest file", "abc"], ["Largest file", "0"], ["Largest file", "-1"], ["Largest file", ""],
     ["Total size limit", "x"], ["Confirmation threshold", "-1"], ["Confirmation threshold", "2.5"], ["Confirmation threshold", "viele"],
   ])("%s lehnt %j ab: nichts gespeichert, Feld springt zurück, Grund steht da", async (name, text) => {
@@ -230,8 +233,15 @@ describe("Settings-Tab: Wurzelfeld", () => {
     expect(h.root).toBe("/data/repos");
     expect(h.rootCalls).toEqual(["relativ", "  /data/repos/  "]);
     expect(row("Source root").components[0].getValue()).toBe("/data/repos");
-    expect(note("Source root").textContent).toBe("");
+    expect(note("Source root").textContent).toBe(HINT);
     expect(note("Source root").hasClass("is-error")).toBe(false);
+  });
+
+  it("sagt unter dem Feld, dass sich die Wurzel nicht leeren lässt", () => {
+    const { note } = open(fakeHost({}, "/data/repos"));
+    expect(note("Source root").textContent).toBe(HINT);
+    expect(note("Source root").hasClass("is-error")).toBe(false);
+    expect(note("Source root").hasClass("is-warning")).toBe(false);
   });
 
   it("warnt bei der Wurzel des Dateisystems, nimmt sie aber an", async () => {

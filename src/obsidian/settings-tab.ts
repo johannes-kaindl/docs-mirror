@@ -6,6 +6,9 @@ import { githubHelpUrls, helpSettingDefinition, type HelpSettingOptions } from "
 import { renderSettingDefinitions } from "../vendor/kit-obsidian/settings_walker";
 
 const MB = 1024 * 1024;
+/** Obergrenze für Größenfelder: 1 TB; darüber ist es ein Tippfehler. */
+const MAX_BYTES = 1e12;
+const MAX_THRESHOLD = 1e9;
 
 /** Was der Tab vom Plugin braucht: lesen, die Einstellungen ändern, die Wurzel setzen. Kein Lauf, nirgends. */
 export interface SettingsHost {
@@ -26,7 +29,7 @@ export function helpOptions(open?: (url: string) => void): HelpSettingOptions {
   };
 }
 
-type Note = { text: string; kind: "error" | "warning" } | null;
+type Note = { text: string; kind: "error" | "warning" | "hint" } | null;
 type Outcome = { ok: true } | { ok: false; problem: StringKey };
 
 interface FieldSpec {
@@ -134,7 +137,7 @@ export class DocsMirrorSettingTab extends PluginSettingTab {
       multiline: false,
       revertOnError: false,
       value: () => this.host.root,
-      note: () => (this.host.root === "/" ? { text: t("settings.rootSlash"), kind: "warning" } : null),
+      note: () => (this.host.root === "/" ? { text: t("settings.rootSlash"), kind: "warning" } : { text: t("settings.rootNoClear"), kind: "hint" }),
       commit: (text) => {
         if (text.trim() === this.host.root) return { ok: true };
         const r = this.host.setRoot(text);
@@ -174,6 +177,7 @@ export class DocsMirrorSettingTab extends PluginSettingTab {
         const mb = trimmed === "" ? NaN : Number(trimmed);
         if (!Number.isFinite(mb) || mb <= 0) return { ok: false, problem: "settings.numberInvalid" };
         const bytes = Math.round(mb * MB);
+        if (bytes < 1 || bytes > MAX_BYTES) return { ok: false, problem: "settings.numberInvalid" };
         if (bytes !== this.host.settings[key]) await this.host.updateSettings({ [key]: bytes });
         return { ok: true };
       },
@@ -191,6 +195,7 @@ export class DocsMirrorSettingTab extends PluginSettingTab {
         const trimmed = text.trim();
         if (!/^\d+$/.test(trimmed)) return { ok: false, problem: "settings.numberInvalid" };
         const files = Number(trimmed);
+        if (files < 1 || files > MAX_THRESHOLD) return { ok: false, problem: "settings.numberInvalid" };
         if (files !== this.host.settings.deleteThresholdFiles) await this.host.updateSettings({ deleteThresholdFiles: files });
         return { ok: true };
       },

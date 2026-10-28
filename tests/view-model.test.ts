@@ -73,6 +73,9 @@ describe("buildViewModel: letzter Lauf, Zähler, Fortschritt", () => {
   it("lastError übersetzt den Schlüssel eines fehlgeschlagenen Laufs, nur bei ok=false", () => {
     expect(vm({ last: { ...INFO, ok: false, error: "status.unreachable" } }).lastError).toBe("Source unreachable");
     expect(vm({ last: { ...INFO, ok: false, error: "notice.failed" } }).lastError).toBe("Sync failed. Nothing was deleted by the failed step.");
+    expect(vm({ last: { ...INFO, ok: false, error: "irgendwas.fremdes" } }).lastError).toBe("Sync failed. Nothing was deleted by the failed step.");
+    expect(vm({ last: { ...INFO, ok: false, error: "settings.root" } }).lastError).toBe("Sync failed. Nothing was deleted by the failed step.");
+    expect(vm({ last: { ...INFO, ok: false, error: "notice.blocked.empty" } }).lastError).toBe("Sync blocked: the source is empty. Nothing was deleted.");
     expect(vm({ last: { ...INFO, ok: false } }).lastError).toBeNull();
     expect(vm({ last: { ...INFO, ok: true, error: "notice.partial" } }).lastError).toBeNull();
     expect(vm({ last: null }).lastError).toBeNull();

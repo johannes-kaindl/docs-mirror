@@ -15,7 +15,7 @@ interface Box {
 
 /** Info-/Ergebnis-Karte nach der Blaupause (UI-STANDARD §8) mit einem nativen `<details>` je Gruppe. Die Funktion
  *  entscheidet nichts: alles Sichtbare kommt fertig aus dem ViewModel. */
-export function renderPlan(parent: HTMLElement, vm: ViewModel, sel: OverwriteSelection): void {
+export function renderPlan(parent: HTMLElement, vm: ViewModel, sel: OverwriteSelection, openState: Map<string, boolean> = new Map()): void {
   const card = parent.createDiv({ cls: "dmr-card dmr-plan" });
   card.createEl("h3", { cls: "dmr-card-heading", text: t("view.planHeading") });
   for (const reason of vm.reasons) card.createDiv({ cls: "dmr-reason", text: reason });
@@ -29,15 +29,18 @@ export function renderPlan(parent: HTMLElement, vm: ViewModel, sel: OverwriteSel
       b.input.disabled = sel.all;
     }
   };
-  for (const g of vm.groups) renderGroup(card, g, sel, boxes, sync);
+  for (const g of vm.groups) renderGroup(card, g, sel, boxes, sync, openState);
   sync();
 }
 
-function renderGroup(card: HTMLElement, g: ViewGroup, sel: OverwriteSelection, boxes: Box[], sync: () => void): void {
+function renderGroup(card: HTMLElement, g: ViewGroup, sel: OverwriteSelection, boxes: Box[], sync: () => void, openState: Map<string, boolean>): void {
+  const open = openState.get(g.cls) ?? g.open;
   const details = card.createEl("details", {
     cls: g.separate ? "dmr-group is-separate" : "dmr-group",
-    attr: g.open ? { open: "" } : {},
+    attr: open ? { open: "" } : {},
   });
+  // Was der Mensch auf- oder zuklappt, bleibt beim nächsten Rendern so.
+  details.addEventListener("toggle", () => { openState.set(g.cls, details.open); });
   details.createEl("summary", { cls: "dmr-group-summary", text: g.label });
   if (g.hint !== null) details.createDiv({ cls: "dmr-hint", text: g.hint });
 
