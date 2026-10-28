@@ -1,0 +1,6 @@
+{
+  "source": "code-kit",
+  "version": "0.43.0",
+  "sha": "3979306",
+  "vendored": "settings.ts, i18n.ts, ignore.ts, sha256.ts, cooperative-yield.ts, busy-guard.ts, format-bytes.ts, rel-path.ts"
+}

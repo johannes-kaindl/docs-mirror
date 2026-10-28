@@ -1,0 +1,26 @@
+{
+  "sources": {
+    "obsidian-kit": { "ref": "0.73.0" },
+    "code-kit": { "ref": "0.43.0" }
+  },
+  "targets": [
+    {
+      "dir": "src/vendor/kit",
+      "source": "code-kit",
+      "from": "src/ts/pure",
+      "modules": ["settings", "i18n", "ignore", "sha256", "cooperative-yield", "busy-guard", "format-bytes", "rel-path"]
+    },
+    {
+      "dir": "src/vendor/kit-obsidian",
+      "source": "obsidian-kit",
+      "from": "src/obsidian",
+      "modules": ["help-setting", "settings_walker", "confirm", "folder-suggest"]
+    },
+    {
+      "dir": "tests/vendor/kit",
+      "source": "obsidian-kit",
+      "from": "src/testing",
+      "modules": ["obsidian-mock"]
+    }
+  ]
+}

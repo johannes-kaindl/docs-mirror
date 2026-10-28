@@ -1,0 +1,10 @@
+{
+  "id": "docs-mirror",
+  "name": "Docs Mirror",
+  "version": "0.1.0",
+  "minAppVersion": "1.11.4",
+  "description": "Mirrors the docs folders of many repos one-way into a small vault",
+  "author": "Johannes Kaindl",
+  "authorUrl": "https://github.com/johannes-kaindl",
+  "isDesktopOnly": true
+}
