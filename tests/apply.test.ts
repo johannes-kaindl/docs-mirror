@@ -155,6 +155,15 @@ describe("applyPlan — Schreiben", () => {
     expect(Object.keys(r.manifest)).toEqual([nfc]);
   });
 
+  it("saveManifest wirft am Ende: das Ergebnis kommt trotzdem zurück, errors trägt den Eintrag", async () => {
+    const v = vaultOf();
+    const h = harness(v, { "d/a.md": "a" }, { saveManifest: () => Promise.reject(new Error("disk full")) });
+    const r = await applyPlan(planOf([newItem("d/a.md", "a")]), {}, h.io, OPTS);
+    expect(r.errors).toEqual([{ path: "", message: "disk full" }]);
+    expect(r.counts).toMatchObject({ created: 1, errors: 1 });
+    expect(r.manifest["d/a.md"]).toBeDefined();
+  });
+
   it("saveEvery speichert das Manifest zwischendurch", async () => {
     const v = vaultOf();
     const files: Record<string, string> = {};
@@ -190,6 +199,19 @@ describe("applyPlan — Löschen", () => {
     expect(v.calls.ops).not.toContain("remove:s/docs");
     expect((await v.stat("s/docs"))?.kind).toBe("folder");
     expect(await v.stat("r/docs")).toBeNull();
+  });
+
+  it("gelöscht wird unter dem echten Namen der vorgefundenen Datei (vaultPath, NFD), der Manifest-Schlüssel ist NFC", async () => {
+    const v = vaultOf(); // Dateisystem unterscheidet NFC und NFD hier
+    const nfd = "docs/Ra\u0308te.md";
+    const nfc = "docs/R\u00e4te.md";
+    v.put(nfd, "x");
+    const h = harness(v, {});
+    const plan = planOf([{ path: nfc, cls: "delete", entry: entry(nfc, "x"), vaultPath: nfd }]);
+    const r = await applyPlan(plan, manifestOf(entry(nfc, "x")), h.io, OPTS);
+    expect(v.has(nfd)).toBe(false);
+    expect(r.manifest[nfc]).toBeUndefined();
+    expect(r.counts.deleted).toBe(1);
   });
 
   it("ein delete-Eintrag, der nicht im Manifest steht, wird nie gelöscht", async () => {

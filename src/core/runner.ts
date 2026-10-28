@@ -71,7 +71,12 @@ export function createRunner(deps: RunnerDeps): Runner {
     | { kind: "failed"; info: RunInfo }
     | { kind: "ready"; plan: Plan; confirm: ConfirmReason[]; fingerprint: string; manifest: Manifest };
 
-  /** Scan, Plan, Sicherungen. Wirft nie; Fehler und Sperren werden gespeichert (`last`), das Manifest bleibt unberührt. */
+  /** Speichert best effort; false, wenn der Speicher wirft (der Aufrufer meldet dann einen Fehler statt zu werfen). */
+  const trySave = async (p: Parameters<DeviceState["save"]>[0]): Promise<boolean> => {
+    try { await deps.state.save(p); return true; } catch { return false; }
+  };
+
+  /** Scan, Plan, Sicherungen. Wirft nie (auch nicht, wenn das Speichern wirft); Fehler und Sperren werden gespeichert (`last`), das Manifest bleibt unberührt. */
   async function prepare(load: Loaded, root: string, signal: AbortSignal): Promise<Prepared> {
     const settings = deps.settings();
     const fingerprint = settingsFingerprint(settings, root);
@@ -93,7 +98,7 @@ export function createRunner(deps: RunnerDeps): Runner {
       if (g.blocked !== null) {
         const key = g.blocked === "source-unreachable" ? "status.unreachable" : "notice.blocked.empty";
         pendingPlan = null;
-        await deps.state.save({ last: failed(fingerprint, key) });
+        await trySave({ last: failed(fingerprint, key) });
         return { kind: "blocked", reason: g.blocked };
       }
       return { kind: "ready", plan, confirm: g.confirm, fingerprint, manifest };
@@ -101,7 +106,7 @@ export function createRunner(deps: RunnerDeps): Runner {
       if (e === ABORTED) return { kind: "aborted" };
       pendingPlan = null;
       const info = failed(fingerprint, "notice.failed");
-      await deps.state.save({ last: info });
+      await trySave({ last: info });
       return { kind: "failed", info };
     }
   }
@@ -129,8 +134,10 @@ export function createRunner(deps: RunnerDeps): Runner {
       info = failed(fingerprint, "notice.failed");
     }
     // Der Fingerabdruck gilt erst für einen vollständig ausgeführten Plan: ein Abbruch lässt den alten stehen.
-    if (!aborted && info.error !== "notice.failed") await deps.state.save({ fingerprint, last: info });
-    else await deps.state.save({ last: info });
+    const saved = !aborted && info.error !== "notice.failed"
+      ? await trySave({ fingerprint, last: info })
+      : await trySave({ last: info });
+    if (!saved) info = failed(fingerprint, "notice.failed");
     return { kind: "done", info, aborted };
   }
 

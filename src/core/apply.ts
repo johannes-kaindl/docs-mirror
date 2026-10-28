@@ -182,6 +182,6 @@ export async function applyPlan(plan: Plan, manifest: Manifest, io: ApplyIo, opt
     await pacer.tick(() => io.onProgress(done, total));
   }
   if (!aborted) io.onProgress(done, total);
-  await io.saveManifest({ ...next });
+  try { await io.saveManifest({ ...next }); } catch (e) { fail("", e); }
   return { manifest: next, counts, aborted, errors };
 }

@@ -217,6 +217,40 @@ describe("createRunner", () => {
     expect((r as Extract<RunOutcome, { kind: "waiting" }>).plan.items.find((i) => i.cls === "delete")?.path).toBe("repoA/docs/b.md");
   });
 
+  it("execute mit gleichen Zählern, aber anderen Konfliktpfaden → waiting", async () => {
+    const c = ctx();
+    c.setSource({ "repoA/docs/x.md": "ex", "repoA/docs/y.md": "why" });
+    c.vault.put("repoA/docs/x.md", "foreign");
+    const w = await c.runner.run("manual", sig());
+    expect(w).toMatchObject({ kind: "waiting" });
+    expect(c.runner.pending()?.counts).toMatchObject({ conflict: 1, new: 1 });
+    c.vault.resetCalls();
+    await c.vault.remove("repoA/docs/x.md");
+    c.vault.put("repoA/docs/y.md", "foreign");
+    c.vault.resetCalls();
+    const r = await c.runner.execute("all", sig());
+    expect(r.kind).toBe("waiting");
+    expect(ops(c)).toEqual([]);
+    expect((r as Extract<RunOutcome, { kind: "waiting" }>).plan.items.find((i) => i.cls === "conflict")?.path).toBe("repoA/docs/y.md");
+  });
+
+  it("execute mit gleichen Zählern, aber anderen Pfaden im Vault verändert → waiting", async () => {
+    const c = ctx();
+    await mirrored(c);
+    c.state.data.fingerprint = "old-fingerprint"; // erzwingt waiting
+    c.vault.put("repoA/docs/a.md", "edited-a!", 9999);
+    const w = await c.runner.run("manual", sig());
+    expect(w.kind).toBe("waiting");
+    expect(c.runner.pending()?.counts["vault-modified"]).toBe(1);
+    c.vault.put("repoA/docs/a.md", "alpha", 2000);
+    c.vault.put("repoA/docs/b.md", "edited-b!", 9999);
+    c.vault.resetCalls();
+    const r = await c.runner.execute(new Set(), sig());
+    expect(r.kind).toBe("waiting");
+    expect(ops(c)).toEqual([]);
+    expect((r as Extract<RunOutcome, { kind: "waiting" }>).plan.items.find((i) => i.cls === "vault-modified")?.path).toBe("repoA/docs/b.md");
+  });
+
   it("execute ohne vorherigen Plan schreibt nicht, wenn ein Bestätigungsgrund besteht", async () => {
     const c = ctx();
     const r = await c.runner.execute("all", sig());
@@ -274,6 +308,32 @@ describe("createRunner", () => {
     expect(c.state.data.last).toMatchObject({ ok: false, error: "notice.failed" });
     expect((r as Extract<RunOutcome, { kind: "done" }>).info.error).toBe("notice.failed");
     expect(JSON.stringify(c.state.data.manifest)).toBe(before);
+    expect(c.runner.isBusy()).toBe(false);
+  });
+
+  it("state.save wirft nach dem Lauf → done mit ok false und notice.failed, Sperre frei", async () => {
+    const c = ctx();
+    await c.runner.run("manual", sig());
+    c.state.save = (p) => ("last" in p ? Promise.reject(new Error("disk")) : Promise.resolve());
+    const d = await c.runner.execute(new Set(), sig());
+    expect(d).toMatchObject({ kind: "done", info: { ok: false, error: "notice.failed" } });
+    expect(c.runner.isBusy()).toBe(false);
+  });
+
+  it("state.save wirft beim blocked-Pfad → blocked statt Wurf, Sperre frei", async () => {
+    const c = ctx();
+    c.setSource({}, { missingRoot: true });
+    c.state.save = () => Promise.reject(new Error("disk"));
+    expect(await c.runner.run("manual", sig())).toEqual({ kind: "blocked", reason: "source-unreachable" });
+    expect(c.runner.isBusy()).toBe(false);
+  });
+
+  it("state.save wirft beim Planungsfehler → done mit notice.failed statt Wurf", async () => {
+    const c = ctx();
+    c.vault.failOn("list");
+    c.state.save = () => Promise.reject(new Error("disk"));
+    const r = await c.runner.run("manual", sig());
+    expect(r).toMatchObject({ kind: "done", info: { ok: false, error: "notice.failed" } });
     expect(c.runner.isBusy()).toBe(false);
   });
 
