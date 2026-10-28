@@ -79,6 +79,8 @@ export const STRINGS = {
     "notice.waiting": "Sync needs confirmation: open the Docs Mirror sidebar.",
     "notice.alreadyRunning": "A sync is already running.",
     "notice.done": "Sync finished: {changed} changed, {deleted} deleted.",
+    "notice.failed": "Sync failed. Nothing was deleted by the failed step.",
+    "notice.partial": "Sync finished with errors: some files were skipped.",
   },
   de: {
     "status.not-configured": "Nicht eingerichtet",
@@ -153,6 +155,8 @@ export const STRINGS = {
     "notice.waiting": "Der Lauf braucht eine Bestätigung: Öffne die Seitenleiste von Docs Mirror.",
     "notice.alreadyRunning": "Ein Lauf läuft bereits.",
     "notice.done": "Lauf fertig: {changed} geändert, {deleted} gelöscht.",
+    "notice.failed": "Lauf fehlgeschlagen. Der fehlgeschlagene Schritt hat nichts gelöscht.",
+    "notice.partial": "Lauf mit Fehlern beendet: einige Dateien wurden übersprungen.",
   },
 } as const;
 
