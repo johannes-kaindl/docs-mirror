@@ -1,0 +1,93 @@
+/* Docs Mirror — Präfix dmr-, nur Theme-Variablen (UI-STANDARD §3). */
+
+.dmr-view {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* Aktionszeile: bleibt stehen, der Körper scrollt darunter und läuft nie darunter durch. */
+.dmr-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--size-4-2);
+  flex: 0 0 auto;
+  padding: var(--size-4-2) var(--size-4-3);
+  border-bottom: 1px solid var(--background-modifier-border);
+  background: var(--background-primary);
+}
+.dmr-actions button { flex: 1 1 auto; min-width: 0; }
+.dmr-hidden { display: none; }
+
+/* Status-Indikator: Form (Icon) UND Text UND Farbe; die Farbe allein trägt nichts. */
+.dmr-status {
+  display: flex;
+  align-items: center;
+  gap: var(--size-4-2);
+  flex: 0 0 auto;
+  padding: var(--size-4-2) var(--size-4-3);
+  font-size: var(--font-ui-small);
+}
+.dmr-status-icon { display: inline-flex; align-items: center; }
+.dmr-status-text { overflow-wrap: anywhere; }
+.dmr-status.is-ok { color: var(--text-success); }
+.dmr-status.is-error { color: var(--text-error); }
+.dmr-status.is-warning { color: var(--text-warning); }
+.dmr-status.is-checking { color: var(--text-muted); }
+.dmr-status.is-checking svg { animation: dmr-spin 1s linear infinite; }
+@keyframes dmr-spin { to { transform: rotate(360deg); } }
+
+.dmr-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: var(--size-4-2) var(--size-4-3) var(--size-4-4);
+}
+
+/* Empty-State */
+.dmr-empty { text-align: center; padding: var(--size-4-8) var(--size-4-2); }
+.dmr-empty-heading { margin: 0 0 var(--size-4-2); }
+.dmr-empty-desc { color: var(--text-muted); font-size: var(--font-ui-small); }
+
+/* Info-/Ergebnis-Karte */
+.dmr-card {
+  background: var(--background-secondary);
+  border: 1px solid var(--background-modifier-border);
+  border-radius: var(--radius-m);
+  padding: var(--size-4-3);
+  margin-bottom: var(--size-4-3);
+}
+.dmr-card-heading { margin: 0 0 var(--size-4-2); font-size: var(--font-ui-medium); }
+.dmr-reason { color: var(--text-normal); font-size: var(--font-ui-small); margin-bottom: var(--size-4-1); }
+.dmr-note { color: var(--text-muted); font-size: var(--font-ui-small); margin-bottom: var(--size-4-1); }
+.dmr-error { color: var(--text-error); font-size: var(--font-ui-small); margin-bottom: var(--size-4-2); }
+
+/* Gruppen: nativer <details> */
+.dmr-group { border-top: 1px solid var(--background-modifier-border); padding: var(--size-4-1) 0; }
+.dmr-group:first-of-type { margin-top: var(--size-4-2); }
+.dmr-group.is-separate { margin-top: var(--size-4-3); border-top-style: dashed; }
+.dmr-group-summary { cursor: pointer; padding: var(--size-4-1) 0; font-size: var(--font-ui-small); }
+.dmr-hint { color: var(--text-muted); font-size: var(--font-ui-smaller); margin: var(--size-4-1) 0; }
+.dmr-overwrite-bar { display: flex; gap: var(--size-4-2); margin: var(--size-4-1) 0; }
+.dmr-rows { display: flex; flex-direction: column; gap: var(--size-4-1); }
+.dmr-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--size-4-1) var(--size-4-2);
+  font-size: var(--font-ui-smaller);
+}
+.dmr-path { overflow-wrap: anywhere; }
+.dmr-row-note { flex: 1 0 100%; color: var(--text-muted); }
+.dmr-more { color: var(--text-faint); font-size: var(--font-ui-smaller); margin-top: var(--size-4-1); }
+
+/* Zähler des letzten Laufs */
+.dmr-counters { display: flex; flex-direction: column; gap: var(--size-4-1); }
+.dmr-counter { display: flex; justify-content: space-between; gap: var(--size-4-2); font-size: var(--font-ui-small); }
+.dmr-counter-label { color: var(--text-muted); }
+
+/* Einstellungen: Hinweis unter einem Feld, Form (Text) trägt, die Farbe unterstützt. */
+.dmr-field-note { font-size: var(--font-ui-smaller); color: var(--text-muted); margin-top: var(--size-4-1); }
+.dmr-field-note.is-error { color: var(--text-error); }
+.dmr-field-note.is-warning { color: var(--text-warning); }

@@ -73,4 +73,37 @@ describe("strings", () => {
     expect(tn("plan.new", 1)).toBe("1 neue Datei");
     expect(tn("plan.new", 3)).toBe("3 neue Dateien");
   });
+  it("Begründungen je Plan-Grund gibt es in EN und DE, jede eigen", () => {
+    const reasons = ["vault-missing", "type-change", "case-collision", "unreadable", "orphan-modified", "foreign"] as const;
+    for (const lang of ["en", "de"] as const) {
+      setLang(lang);
+      const texts = reasons.map((r) => t(`plan.reason.${r}`));
+      expect(new Set(texts).size, lang).toBe(reasons.length);
+      for (const text of texts) expect(text.endsWith("."), `${lang}: ${text}`).toBe(true);
+    }
+    setLang("de");
+    expect(t("plan.reason.orphan-modified")).toBe("Quelle gelöscht, im Vault verändert: bleibt liegen.");
+  });
+
+  it("nicht geprüft: Zählform mit Hinweis auf unlesbare Ordner", () => {
+    expect(tn("plan.unchecked", 1)).toBe("Not checked: 1 file in an unreadable folder");
+    expect(tn("plan.unchecked", 2)).toBe("Not checked: 2 files in unreadable folders");
+    setLang("de");
+    expect(tn("plan.unchecked", 3)).toBe("Nicht geprüft: 3 Dateien in unlesbaren Ordnern");
+  });
+
+  it("DE-Feinschliff aus dem Review: Gesamtgrößen-Grenze, vollständiger Einstellungs-Satz, glatte Vault-Zeile", () => {
+    setLang("de");
+    expect(t("guard.total-size")).toBe("Die zu spiegelnden Dateien überschreiten die Gesamtgrößen-Grenze.");
+    expect(t("plan.hint.settings-changed")).toMatch(/^Die Einstellungen haben sich .*\.$/);
+    expect(tn("plan.vault-modified", 1)).toBe("1 Datei im Vault verändert");
+    expect(tn("plan.vault-modified", 4)).toBe("4 Dateien im Vault verändert");
+  });
+
+  it("Ordnermuster werden als Muster erklärt, nicht als Ausschluss", () => {
+    expect(t("settings.patterns")).toBe("Folder patterns");
+    expect(t("settings.patternsDesc")).not.toMatch(/skipped|ignore/i);
+    setLang("de");
+    expect(t("settings.patterns")).toBe("Ordnermuster");
+  });
 });
