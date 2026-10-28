@@ -1,7 +1,7 @@
 import { ItemView, setIcon, type App, type WorkspaceLeaf } from "obsidian";
 import { t } from "../i18n/strings";
 import type { ViewModel } from "../core/view-model";
-import { renderPlan, type OverwriteSelection } from "./plan-view";
+import { FOCUS_ATTR, renderPlan, type OverwriteSelection } from "./plan-view";
 
 /** Der EINE Ansichtstyp des Plugins (UI-STANDARD §1). */
 export const VIEW_TYPE_DOCS_MIRROR = "docs-mirror-view";
@@ -95,8 +95,22 @@ export class DocsMirrorView extends ItemView {
     }
     this.statusTextEl.setText(vm.progressText === null ? vm.statusText : `${vm.statusText} · ${vm.progressText}`);
 
+    // Der Neuaufbau zerstört das fokussierte Element: Schlüssel merken, danach das neue Gegenstück fokussieren.
+    // Nur wenn der Fokus vorher im Körper lag; wer woanders tippt, wird nie hierher gezogen.
+    const focusKey = this.focusKeyIn(this.bodyEl);
     this.bodyEl.empty();
     this.renderBody(this.bodyEl, vm);
+    if (focusKey !== null) {
+      const next = Array.from(this.bodyEl.querySelectorAll<HTMLElement>(".dmr-focusable")).find((el) => el.getAttribute(FOCUS_ATTR) === focusKey);
+      next?.focus({ preventScroll: true });
+    }
+  }
+
+  private focusKeyIn(body: HTMLElement): string | null {
+    const active = (body.ownerDocument as Document | undefined)?.activeElement ?? null;
+    if (active === null) return null;
+    const hit = Array.from(body.querySelectorAll(".dmr-focusable")).find((el) => el === active);
+    return hit?.getAttribute(FOCUS_ATTR) ?? null;
   }
 
   private onPrimary(): void {

@@ -8,6 +8,9 @@ export interface OverwriteSelection {
   paths: Set<string>;
 }
 
+/** Stabiler Schlüssel jedes Bedienelements im Körper (Klasse `dmr-focusable`): so findet die Ansicht den Fokus nach dem Neuaufbau wieder. */
+export const FOCUS_ATTR = "data-dmr-focus";
+
 interface Box {
   path: string;
   input: HTMLInputElement;
@@ -41,16 +44,16 @@ function renderGroup(card: HTMLElement, g: ViewGroup, sel: OverwriteSelection, b
   });
   // Was der Mensch auf- oder zuklappt, bleibt beim nächsten Rendern so.
   details.addEventListener("toggle", () => { openState.set(g.cls, details.open); });
-  details.createEl("summary", { cls: "dmr-group-summary", text: g.label });
+  details.createEl("summary", { cls: "dmr-group-summary dmr-focusable", text: g.label, attr: { [FOCUS_ATTR]: `summary:${g.cls}` } });
   if (g.hint !== null) details.createDiv({ cls: "dmr-hint", text: g.hint });
 
   if (g.rows.some((r) => r.overwritable)) {
     const bar = details.createDiv({ cls: "dmr-overwrite-bar" });
-    bar.createEl("button", { text: t("view.overwriteAll") }).addEventListener("click", () => {
+    bar.createEl("button", { cls: "dmr-focusable", text: t("view.overwriteAll"), attr: { [FOCUS_ATTR]: `all:${g.cls}` } }).addEventListener("click", () => {
       sel.all = true;
       sync();
     });
-    bar.createEl("button", { text: t("view.overwriteNone") }).addEventListener("click", () => {
+    bar.createEl("button", { cls: "dmr-focusable", text: t("view.overwriteNone"), attr: { [FOCUS_ATTR]: `none:${g.cls}` } }).addEventListener("click", () => {
       sel.all = false;
       sel.paths.clear();
       sync();
@@ -65,7 +68,7 @@ function renderGroup(card: HTMLElement, g: ViewGroup, sel: OverwriteSelection, b
 function renderRow(list: HTMLElement, row: GroupRow, sel: OverwriteSelection, boxes: Box[]): void {
   const el = list.createDiv({ cls: "dmr-row" });
   if (row.overwritable) {
-    const input = el.createEl("input", { cls: "dmr-overwrite", attr: { type: "checkbox", "aria-label": `${t("view.overwrite")}: ${row.path}` } });
+    const input = el.createEl("input", { cls: "dmr-overwrite dmr-focusable", attr: { type: "checkbox", "aria-label": `${t("view.overwrite")}: ${row.path}`, [FOCUS_ATTR]: `overwrite:${row.path}` } });
     input.addEventListener("change", () => {
       if (sel.all) return;
       if (input.checked) sel.paths.add(row.path);

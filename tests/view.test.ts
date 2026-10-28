@@ -228,6 +228,77 @@ describe("DocsMirrorView", () => {
     expect(det(/delete/).getAttribute("open")).not.toBeNull();
   });
 
+  describe("Fokus überlebt den Neuaufbau des Körpers", () => {
+    const items = [item("a/c1.md", "conflict", { src }), item("a/c2.md", "conflict", { src }), item("a/n.md", "new", { src })];
+    /** Der Mock hat keinen Fokus: `focus()` setzt `doc.activeElement`, ein neuer Knoten mit demselben Schlüssel ist ein anderes Objekt. */
+    function track(v: any) {
+      const doc: { activeElement: any } = { activeElement: null };
+      const calls: any[][] = [];
+      (v.contentEl as any).ownerDocument = doc;
+      const hook = (el: any): any => {
+        if (el.__hooked) return el;
+        el.__hooked = true;
+        el.ownerDocument = doc;
+        el.focus = (...a: any[]) => { calls.push(a); doc.activeElement = el; };
+        return el;
+      };
+      return { doc, calls, hook };
+    }
+    const prep = async (): Promise<any> => {
+      const s = setup({ status: "waiting", waiting: true, plan: plan(items) });
+      await s.view.onOpen();
+      const t = track(s.view);
+      // Jeder Treffer im Körper bekommt den Fokus-Haken, auch die frisch gebauten (der Mock kennt keinen Fokus).
+      const body = all(s.root(), ".dmr-body")[0];
+      body.ownerDocument = t.doc;
+      const orig = body.querySelectorAll;
+      body.querySelectorAll = (sel: string) => orig(sel).map(t.hook);
+      return { ...s, ...t, body };
+    };
+    const keyed = (s: any, key: string): any => s.body.querySelectorAll(".dmr-focusable").find((e: any) => e.getAttribute("data-dmr-focus") === key);
+
+    it("Kästchen, „Alle überschreiben“ und Summary behalten den Fokus auf dem neuen Element", async () => {
+      const s = await prep();
+      for (const key of ["overwrite:a/c2.md", "all:conflict", "none:conflict", "summary:new"]) {
+        const old = keyed(s, key);
+        old.focus();
+        expect(s.doc.activeElement).toBe(old);
+        s.calls.length = 0;
+        s.set({ progress: { done: 1, total: 2 } });
+        const fresh = keyed(s, key);
+        expect(fresh, key).not.toBe(old);
+        expect(s.doc.activeElement, key).toBe(fresh);
+        expect(s.calls, key).toEqual([[{ preventScroll: true }]]);
+      }
+    });
+
+    it("liegt der Fokus außerhalb der Ansicht, wird er nicht hergeholt", async () => {
+      const s = await prep();
+      const outside = { focus: () => { throw new Error("stolen"); } };
+      s.doc.activeElement = outside;
+      s.calls.length = 0;
+      s.set({ progress: { done: 1, total: 2 } });
+      expect(s.doc.activeElement).toBe(outside);
+      expect(s.calls).toEqual([]);
+    });
+
+    it("liegt der Fokus auf der Aktionszeile (bleibt stehen), passiert nichts", async () => {
+      const s = await prep();
+      const primary = s.hook(all(s.root(), ".dmr-primary")[0]);
+      primary.focus();
+      s.calls.length = 0;
+      s.set({ progress: { done: 1, total: 2 } });
+      expect(s.doc.activeElement).toBe(primary);
+      expect(s.calls).toEqual([]);
+    });
+
+    it("gibt es das Element nach dem Neuaufbau nicht mehr, bleibt es still", async () => {
+      const s = await prep();
+      keyed(s, "overwrite:a/c2.md").focus();
+      expect(() => { s.set({ plan: plan([item("a/c1.md", "conflict", { src })]) }); }).not.toThrow();
+    });
+  });
+
   it("fehlgeschlagener Lauf zeigt den Grund als Text mit Fehlerklasse", async () => {
     const { view, root } = setup({ status: "error", last: { ...INFO, ok: false, error: "notice.failed" } });
     await view.onOpen();
