@@ -1,7 +1,7 @@
 import { ItemView, setIcon, type App, type WorkspaceLeaf } from "obsidian";
 import { t } from "../i18n/strings";
 import type { ViewModel } from "../core/view-model";
-import { FOCUS_ATTR, renderPlan, type OverwriteSelection } from "./plan-view";
+import { FOCUS_ATTR, GROUP_ATTR, renderPlan, type OverwriteSelection } from "./plan-view";
 
 /** Der EINE Ansichtstyp des Plugins (UI-STANDARD §1). */
 export const VIEW_TYPE_DOCS_MIRROR = "docs-mirror-view";
@@ -97,20 +97,23 @@ export class DocsMirrorView extends ItemView {
 
     // Der Neuaufbau zerstört das fokussierte Element: Schlüssel merken, danach das neue Gegenstück fokussieren.
     // Nur wenn der Fokus vorher im Körper lag; wer woanders tippt, wird nie hierher gezogen.
-    const focusKey = this.focusKeyIn(this.bodyEl);
+    const focus = this.focusIn(this.bodyEl);
     this.bodyEl.empty();
     this.renderBody(this.bodyEl, vm);
-    if (focusKey !== null) {
-      const next = Array.from(this.bodyEl.querySelectorAll<HTMLElement>(".dmr-focusable")).find((el) => el.getAttribute(FOCUS_ATTR) === focusKey);
+    if (focus !== null) {
+      const all = Array.from(this.bodyEl.querySelectorAll<HTMLElement>(".dmr-focusable"));
+      // Verschwindet das Ziel (Datei ist nicht mehr im Plan), geht der Fokus auf die Summary derselben Gruppe, sonst bleibt er unberührt.
+      const next = all.find((el) => el.getAttribute(FOCUS_ATTR) === focus.key) ?? (focus.group === null ? undefined : all.find((el) => el.getAttribute(FOCUS_ATTR) === `summary:${focus.group}`));
       next?.focus({ preventScroll: true });
     }
   }
 
-  private focusKeyIn(body: HTMLElement): string | null {
+  private focusIn(body: HTMLElement): { key: string; group: string | null } | null {
     const active = (body.ownerDocument as Document | undefined)?.activeElement ?? null;
     if (active === null) return null;
     const hit = Array.from(body.querySelectorAll(".dmr-focusable")).find((el) => el === active);
-    return hit?.getAttribute(FOCUS_ATTR) ?? null;
+    const key = hit?.getAttribute(FOCUS_ATTR);
+    return key === undefined || key === null ? null : { key, group: hit?.getAttribute(GROUP_ATTR) ?? null };
   }
 
   private onPrimary(): void {

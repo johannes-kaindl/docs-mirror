@@ -10,6 +10,8 @@ export interface OverwriteSelection {
 
 /** Stabiler Schlüssel jedes Bedienelements im Körper (Klasse `dmr-focusable`): so findet die Ansicht den Fokus nach dem Neuaufbau wieder. */
 export const FOCUS_ATTR = "data-dmr-focus";
+/** Klasse der Gruppe, in der ein fokussierbares Element steht: Rückfall des Fokus, wenn das Element nach dem Neuaufbau fehlt. */
+export const GROUP_ATTR = "data-dmr-group";
 
 interface Box {
   path: string;
@@ -44,16 +46,16 @@ function renderGroup(card: HTMLElement, g: ViewGroup, sel: OverwriteSelection, b
   });
   // Was der Mensch auf- oder zuklappt, bleibt beim nächsten Rendern so.
   details.addEventListener("toggle", () => { openState.set(g.cls, details.open); });
-  details.createEl("summary", { cls: "dmr-group-summary dmr-focusable", text: g.label, attr: { [FOCUS_ATTR]: `summary:${g.cls}` } });
+  details.createEl("summary", { cls: "dmr-group-summary dmr-focusable", text: g.label, attr: { [FOCUS_ATTR]: `summary:${g.cls}`, [GROUP_ATTR]: g.cls } });
   if (g.hint !== null) details.createDiv({ cls: "dmr-hint", text: g.hint });
 
   if (g.rows.some((r) => r.overwritable)) {
     const bar = details.createDiv({ cls: "dmr-overwrite-bar" });
-    bar.createEl("button", { cls: "dmr-focusable", text: t("view.overwriteAll"), attr: { [FOCUS_ATTR]: `all:${g.cls}` } }).addEventListener("click", () => {
+    bar.createEl("button", { cls: "dmr-focusable", text: t("view.overwriteAll"), attr: { [FOCUS_ATTR]: `all:${g.cls}`, [GROUP_ATTR]: g.cls } }).addEventListener("click", () => {
       sel.all = true;
       sync();
     });
-    bar.createEl("button", { cls: "dmr-focusable", text: t("view.overwriteNone"), attr: { [FOCUS_ATTR]: `none:${g.cls}` } }).addEventListener("click", () => {
+    bar.createEl("button", { cls: "dmr-focusable", text: t("view.overwriteNone"), attr: { [FOCUS_ATTR]: `none:${g.cls}`, [GROUP_ATTR]: g.cls } }).addEventListener("click", () => {
       sel.all = false;
       sel.paths.clear();
       sync();
@@ -61,14 +63,14 @@ function renderGroup(card: HTMLElement, g: ViewGroup, sel: OverwriteSelection, b
   }
 
   const list = details.createDiv({ cls: "dmr-rows" });
-  for (const row of g.rows) renderRow(list, row, sel, boxes);
+  for (const row of g.rows) renderRow(list, row, sel, boxes, g.cls);
   if (g.more !== null) details.createDiv({ cls: "dmr-more", text: g.more });
 }
 
-function renderRow(list: HTMLElement, row: GroupRow, sel: OverwriteSelection, boxes: Box[]): void {
+function renderRow(list: HTMLElement, row: GroupRow, sel: OverwriteSelection, boxes: Box[], groupCls: string): void {
   const el = list.createDiv({ cls: "dmr-row" });
   if (row.overwritable) {
-    const input = el.createEl("input", { cls: "dmr-overwrite dmr-focusable", attr: { type: "checkbox", "aria-label": `${t("view.overwrite")}: ${row.path}`, [FOCUS_ATTR]: `overwrite:${row.path}` } });
+    const input = el.createEl("input", { cls: "dmr-overwrite dmr-focusable", attr: { type: "checkbox", "aria-label": `${t("view.overwrite")}: ${row.path}`, [FOCUS_ATTR]: `overwrite:${row.path}`, [GROUP_ATTR]: groupCls } });
     input.addEventListener("change", () => {
       if (sel.all) return;
       if (input.checked) sel.paths.add(row.path);

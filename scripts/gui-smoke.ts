@@ -38,7 +38,7 @@
  *
  * Typen: `tsconfig.scripts.json` (im `gate` über `npm run typecheck:scripts`).
  */
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { cwd } from "node:process";
 
@@ -108,6 +108,8 @@ const PUNKTE = [
   "O10c Startlauf-Timer und Befehle zusammen: nie zwei Läufe gleichzeitig",
   "I Wurzel auf nicht vorhandenen Pfad: „Quelle nicht erreichbar“, alle Vault-Dateien und das Manifest bleiben",
   "J Wurzel auf leeren Ordner: blockiert, nichts gelöscht, Manifest bleibt",
+  "I2 Quelle verschwindet bei unverändertem Fingerabdruck (kein Wurzelwechsel, keine Bestätigungspflicht): blockiert, Vault und Manifest bleiben",
+  "J2 Alle Treffer verschwinden bei bestehender Wurzel und unverändertem Fingerabdruck: blockiert, Vault und Manifest bleiben",
   "O11 Wurzel „/“: Warnung sichtbar (kein Lauf)",
   "O12 Platform.isDesktopApp false: Notice statt fs-Zugriff",
   "K Statuszeile in jedem Zustand: Text, Icon (svg) und aria-label, Klasse zum Zustand",
@@ -123,6 +125,7 @@ const PUNKTE = [
   "O3a is-checking startet beim Neuaufbau nicht neu (gleiches Element, Uhr läuft weiter)",
   "O3b prefers-reduced-motion: Animation aus",
   "O7 Wurzelwechsel MITTEN im Lauf: der Lauf liest den alten Baum weiter",
+  "P Quelldatei WÄHREND des Laufs gelöscht, eine geändert: Fehler gezählt, kein Manifest-Eintrag, der Lauf geht weiter",
   "O8 Wurzelwechsel in der Wartephase: nächster Lauf wartet mit Fingerabdruck-Grund, nichts gelöscht",
 ] as const;
 
@@ -303,6 +306,16 @@ const recL = (noch: boolean, kurz: string, ok: boolean, detail: string): void =>
   if (noch) rec(kurz, ok, detail);
   else unm(kurz, `Gegenstand nicht erreicht: der Lauf war bei der Probe schon zu Ende (${detail.slice(0, 160)})`);
 };
+/** Verschobene Quellordner (I2/J2): im Aufräumen zurück an ihren Platz, auch nach einem Abbruch. */
+const verschoben: [string, string][] = [];
+function verschiebe(von: string, nach: string): void {
+  mkdirSync(join(nach, ".."), { recursive: true });
+  renameSync(von, nach);
+  verschoben.push([von, nach]);
+}
+function stelleQuellenWiederHer(): void {
+  for (const [von, nach] of verschoben.splice(0).reverse()) if (existsSync(nach) && !existsSync(von)) renameSync(nach, von);
+}
 const text = (pfad: string): string => readFileSync(pfad, "utf8");
 
 /* ── Einstellungs-Tab ─────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -394,6 +407,7 @@ async function main(): Promise<void> {
   const portArg = args.value("port");
   if (!portArg || !Number.isInteger(Number(portArg))) throw new Error("--port <Port> ist Pflicht (Zweitinstanz, z. B. --port 9392) — kein Standardport.");
   const port = Number(portArg);
+  if (port === 9222) throw new Error("Port 9222 ist die reguläre Instanz — nie anfassen. Zweitinstanz verwenden.");
   const ohneGross = args.has("ohne-gross");
   const mutiert = args.has("mutiert");
   bilderDir = args.value("bilder") ?? null;
@@ -406,6 +420,7 @@ async function main(): Promise<void> {
   const warnungen: string[] = [];
   const zustandZurueck = async (): Promise<void> => {
     try {
+      stelleQuellenWiederHer();
       await cdp.send("Emulation.setEmulatedMedia", { features: [] });
       await cdp.evaluate(`
         if (window.__smoke && window.__smoke.undo) window.__smoke.undo();
@@ -804,9 +819,65 @@ async function main(): Promise<void> {
     await warteStatus(cdp, "Up to date", 10000);
 
     /* ── I, J ──────────────────────────────────────────────────────────────────────────────────────────────────── */
+    /* ── I2, J2: die Quelle verschwindet, Fingerabdruck und Einstellungen bleiben ───────────────────────────────── */
+    console.log("\nI2 · Quelle verschwindet bei unverändertem Fingerabdruck");
+    // I und J ändern die Wurzel: die Bestätigungspflicht („Settings changed“) fängt dort das Löschen schon vorher. Hier bleibt die Wurzel,
+    // der Fingerabdruck gilt, die Löschschwelle (20) ist unterschritten: allein der Löschschutz steht zwischen der Quelle und dem Vault.
+    const lastAt = (): Promise<number | null> => cdp.evaluate<number | null>(`return ${P}.last ? ${P}.last.at : null;`);
+    const bereit = async (): Promise<{ ok: boolean; detail: string }> => {
+      await warteStatus(cdp, "Up to date", 15000);
+      const at0 = await lastAt();
+      await klick(cdp, PRIMAER);
+      const gelaufen = await warteBis(cdp, `${P}.last && ${P}.last.at !== ${q(at0)}`, 15000, 100);
+      const st = await lese(cdp);
+      const wartet = await cdp.evaluate<boolean>(`return ${P}.runner.pending() !== null;`);
+      return { ok: gelaufen && st.statusText === "Up to date" && !wartet, detail: `Vorlauf ohne Bestätigung: gelaufen=${gelaufen}, Status ${q(st.statusText)}, wartender Plan=${wartet}` };
+    };
+    const vorb = await bereit();
+    const vorI2 = await vaultDateien(cdp);
+    const mVorI2 = await geraetWert(cdp, "manifest");
+    const fpVorI2 = await geraetWert(cdp, "fingerprint");
+    const anzI2 = mVorI2 === null ? 0 : Object.keys(JSON.parse(mVorI2) as Record<string, unknown>).length;
+    verschiebe(MAIN, `${MAIN}-weg`);
+    await clearNotices(cdp);
+    await klick(cdp, PRIMAER);
+    const i2Status = await warteStatus(cdp, "Source unreachable", 15000);
+    await sleep(300);
+    const i2Notice = await notices(cdp);
+    const nachI2 = await vaultDateien(cdp);
+    const mNachI2 = await geraetWert(cdp, "manifest");
+    const fpNachI2 = await geraetWert(cdp, "fingerprint");
+    await bild(cdp, "09b-quelle-weg-gleicher-fingerabdruck");
+    rec("I2", vorb.ok && mVorI2 !== null && anzI2 > 0 && vorI2.length >= 7 && i2Status && /source is unreachable\. Nothing was deleted/.test(i2Notice) && JSON.stringify(vorI2) === JSON.stringify(nachI2) && mVorI2 === mNachI2 && fpVorI2 === fpNachI2,
+      `${vorb.detail} · Quelle weggenommen, Wurzel und Einstellungen unverändert, Fingerabdruck vorher/nachher gleich=${fpVorI2 === fpNachI2} · Status ${i2Status ? "\"Source unreachable\"" : "NICHT erreicht"} · Notice ${q(i2Notice)} · Vault vorher ${vorI2.length} / nachher ${nachI2.length} Dateien, gleich=${JSON.stringify(vorI2) === JSON.stringify(nachI2)} · Manifest ${anzI2} Einträge, unverändert=${mVorI2 === mNachI2}`);
+    stelleQuellenWiederHer();
+
+    console.log("\nJ2 · Alle Treffer verschwinden");
+    const vorb2 = await bereit();
+    const vorJ2 = await vaultDateien(cdp);
+    const mVorJ2 = await geraetWert(cdp, "manifest");
+    const fpVorJ2 = await geraetWert(cdp, "fingerprint");
+    const anzJ2 = mVorJ2 === null ? 0 : Object.keys(JSON.parse(mVorJ2) as Record<string, unknown>).length;
+    for (const r of ["repo-alpha", "repo-beta", "repo-gamma"]) verschiebe(join(MAIN, r, "docs"), join(SRC_BASE, "docs-weg", r, "docs"));
+    await clearNotices(cdp);
+    await klick(cdp, PRIMAER);
+    const j2Status = await warteStatus(cdp, "Error", 15000);
+    await sleep(300);
+    const j2Notice = await notices(cdp);
+    const j2Ansicht = await lese(cdp);
+    const nachJ2 = await vaultDateien(cdp);
+    const mNachJ2 = await geraetWert(cdp, "manifest");
+    const fpNachJ2 = await geraetWert(cdp, "fingerprint");
+    rec("J2", vorb2.ok && mVorJ2 !== null && anzJ2 > 0 && vorJ2.length >= 7 && j2Status && /source is empty\. Nothing was deleted/.test(j2Notice) && (j2Ansicht.error ?? "").includes("the source is empty") && JSON.stringify(vorJ2) === JSON.stringify(nachJ2) && mVorJ2 === mNachJ2 && fpVorJ2 === fpNachJ2,
+      `${vorb2.detail} · die drei docs-Ordner weggenommen, Wurzel besteht, Fingerabdruck gleich=${fpVorJ2 === fpNachJ2} · Status ${q(j2Ansicht.statusText)}, Fehlerzeile ${q(j2Ansicht.error)} · Notice ${q(j2Notice)} · Vault vorher ${vorJ2.length} / nachher ${nachJ2.length} Dateien, gleich=${JSON.stringify(vorJ2) === JSON.stringify(nachJ2)} · Manifest ${anzJ2} Einträge, unverändert=${mVorJ2 === mNachJ2}`);
+    stelleQuellenWiederHer();
+    await klick(cdp, PRIMAER);
+    await warteStatus(cdp, "Up to date", 15000);
+
     console.log("\nI · Wurzel nicht vorhanden");
     const vorI = await vaultDateien(cdp);
     const mVorI = await geraetWert(cdp, "manifest");
+    const mVorIAnzahl = mVorI === null ? 0 : Object.keys(JSON.parse(mVorI) as Record<string, unknown>).length;
     const wI = await setzeWurzel(cdp, port, MISSING);
     await clearNotices(cdp);
     await klick(cdp, PRIMAER);
@@ -818,8 +889,8 @@ async function main(): Promise<void> {
     await bild(cdp, "09-quelle-nicht-erreichbar");
     const nachI = await vaultDateien(cdp);
     const mNachI = await geraetWert(cdp, "manifest");
-    rec("I", wI.ok && iStatus && /source is unreachable\. Nothing was deleted/.test(iNotice) && JSON.stringify(vorI) === JSON.stringify(nachI) && mVorI === mNachI && iAnsicht.error === "Source unreachable",
-      `Wurzel ${wI.ok ? "gesetzt" : "NICHT gesetzt"} · Status ${q(iAnsicht.statusText)} · Fehlerzeile ${q(iAnsicht.error)} · Notice ${q(iNotice)} · Vault vorher ${vorI.length} / nachher ${nachI.length} Dateien, gleich=${JSON.stringify(vorI) === JSON.stringify(nachI)} · Manifest unverändert=${mVorI === mNachI}`);
+    rec("I", wI.ok && iStatus && /source is unreachable\. Nothing was deleted/.test(iNotice) && JSON.stringify(vorI) === JSON.stringify(nachI) && mVorI !== null && mVorIAnzahl > 0 && mVorI === mNachI && iAnsicht.error === "Source unreachable",
+      `Wurzel ${wI.ok ? "gesetzt" : "NICHT gesetzt"} · Status ${q(iAnsicht.statusText)} · Fehlerzeile ${q(iAnsicht.error)} · Notice ${q(iNotice)} · Vault vorher ${vorI.length} / nachher ${nachI.length} Dateien, gleich=${JSON.stringify(vorI) === JSON.stringify(nachI)} · Manifest unverändert=${mVorI === mNachI} (${mVorIAnzahl} Einträge vorher)`);
 
     console.log("\nJ · Wurzel leerer Ordner");
     await setzeWurzel(cdp, port, EMPTY);
@@ -833,8 +904,8 @@ async function main(): Promise<void> {
     await bild(cdp, "10-quelle-leer");
     const nachJ = await vaultDateien(cdp);
     const mNachJ = await geraetWert(cdp, "manifest");
-    rec("J", jStatus && /source is empty\. Nothing was deleted/.test(jNotice) && JSON.stringify(vorI) === JSON.stringify(nachJ) && mVorI === mNachJ && (jAnsicht.error ?? "").includes("the source is empty"),
-      `Status ${q(jAnsicht.statusText)} · Fehlerzeile ${q(jAnsicht.error)} · Notice ${q(jNotice)} · Vault ${nachJ.length} Dateien, gleich=${JSON.stringify(vorI) === JSON.stringify(nachJ)} · Manifest unverändert=${mVorI === mNachJ}`);
+    rec("J", jStatus && /source is empty\. Nothing was deleted/.test(jNotice) && JSON.stringify(vorI) === JSON.stringify(nachJ) && mVorI !== null && mVorIAnzahl > 0 && mVorI === mNachJ && (jAnsicht.error ?? "").includes("the source is empty"),
+      `Status ${q(jAnsicht.statusText)} · Fehlerzeile ${q(jAnsicht.error)} · Notice ${q(jNotice)} · Vault ${nachJ.length} Dateien, gleich=${JSON.stringify(vorI) === JSON.stringify(nachJ)} · Manifest unverändert=${mVorI === mNachJ} (${mVorIAnzahl} Einträge vorher)`);
     // Zurück auf die echte Quelle: nichts wurde verloren, der Lauf braucht keine Bestätigung.
     await setzeWurzel(cdp, port, MAIN);
     await klick(cdp, PRIMAER);
@@ -947,7 +1018,7 @@ async function main(): Promise<void> {
     await fuehreAus(cdp);
 
     /* ── Große Quelle ──────────────────────────────────────────────────────────────────────────────────────────── */
-    const grossPunkte = ["O2", "N0", "N", "O6", "M", "O5", "K2", "O3a", "O3b", "O7", "O8"];
+    const grossPunkte = ["O2", "N0", "N", "O6", "M", "O5", "K2", "O3a", "O3b", "O7", "P", "O8"];
     if (ohneGross) {
       for (const p of grossPunkte) skip(p, "per Flag --ohne-gross abgewählt (kurzer Mutationslauf)");
     } else {
@@ -1101,6 +1172,13 @@ async function main(): Promise<void> {
       await leseDialog(cdp);
       await klickeDialogKnopf(cdp, "Run plan");
       const l1 = await warteBis(cdp, `(() => { const e = document.querySelector(".dmr-status-text"); const m = e && (e.textContent || "").match(/(\\d+) of (\\d+) files/); return m && Number(m[1]) >= 5; })()`, 30000, 40);
+      // P: eine Quelldatei wird WÄHREND des Laufs gelöscht, eine andere verlängert. Beide stehen am Ende der Reihenfolge (d9, Pfad-Sortierung)
+      // und sind jetzt, bei den ersten Dateien, noch nicht geschrieben: der Lauf trifft sie erst nach der Änderung.
+      const P_WEG = "bigrepo/docs/d9/f3999.md"; const P_LANG = "bigrepo/docs/d9/f3849.md"; const P_DANACH = "bigrepo/docs/d9/f3969.md";
+      const pOrigWeg = text(join(BIG, P_WEG)); const pOrigLang = text(join(BIG, P_LANG));
+      const pStart = { laeuft: await cdp.evaluate<boolean>(`return ${P}.running;`), weg: await vaultExistiert(cdp, P_WEG), lang: await vaultExistiert(cdp, P_LANG) };
+      rmSync(join(BIG, P_WEG));
+      writeFileSync(join(BIG, P_LANG), `${pOrigLang}\nWährend des Laufs verlängert.\n`);
       const lauf1m = await cdp.evaluate<{ animationName: string | null; anim: number; zeit: number | null; spielt: string | null; kl: string | null; aria: string | null; text: string | null; primaer: string | null; sek: boolean | null; trans: string | null }>(`
         const svg = document.querySelector(".dmr-status-icon svg"); window.__smoke.svg1 = svg; if (svg) svg.__smokeMarke = 1;
         const a = document.getAnimations().filter((x) => x.animationName === "dmr-spin");
@@ -1147,13 +1225,25 @@ async function main(): Promise<void> {
       // O7: Wurzel MITTEN im Lauf wechseln; der Lauf muss den alten Baum zu Ende lesen.
       await cdp.evaluate(`${P}.setRoot(${q(SOLO)}); return true;`);
       const mitten = await cdp.evaluate<{ root: string; running: boolean }>(`return { root: ${P}.root, running: ${P}.running };`);
-      const fertig7 = await warteStatus(cdp, "Up to date", 90000) || await warteStatus(cdp, "Error", 1000);
+      const fertig7 = await warteBis(cdp, `(() => { const e = document.querySelector(".dmr-status-text"); const t = e ? (e.textContent || "").trim() : ""; return t.startsWith("Up to date") || t.startsWith("Error"); })()`, 90000, 100);
       await sleep(600);
       const nach7 = await vaultDateien(cdp);
       const ans7 = await lese(cdp);
       const grossN = zaehleGross(nach7);
-      recL(mitten.running, "O7", mitten.running && mitten.root === SOLO && fertig7 && grossN === BIG_COUNT && !nach7.includes("solo/docs/only.md") && ans7.counters["Errors"] === 0,
-        `Wurzel mitten im Lauf gewechselt (Lauf läuft=${mitten.running}, Wurzel ${mitten.root === SOLO ? "= solo" : q(mitten.root)}) · danach ${grossN} von ${BIG_COUNT} Dateien aus dem alten Baum (vorher ${vorLauf}), Datei der neuen Wurzel im Vault=${nach7.includes("solo/docs/only.md")} · Zähler ${q(ans7.counters)}`);
+      recL(mitten.running, "O7", mitten.running && mitten.root === SOLO && fertig7 && grossN === BIG_COUNT - 2 && !nach7.includes("solo/docs/only.md"),
+        `Wurzel mitten im Lauf gewechselt (Lauf läuft=${mitten.running}, Wurzel ${mitten.root === SOLO ? "= solo" : q(mitten.root)}) · danach ${grossN} von ${BIG_COUNT} Dateien aus dem alten Baum (zwei von P bewusst gestört; vorher ${vorLauf}), Datei der neuen Wurzel im Vault=${nach7.includes("solo/docs/only.md")} · Zähler ${q(ans7.counters)}`);
+
+      console.log("\nP · Quelle ändert sich während des Laufs");
+      const mkP = await manifestSchluessel(cdp);
+      const pNachher = { weg: nach7.includes(P_WEG), lang: nach7.includes(P_LANG), danach: nach7.includes(P_DANACH) };
+      const pMan = { weg: mkP.includes(P_WEG), lang: mkP.includes(P_LANG), danach: mkP.includes(P_DANACH), gross: mkP.filter((k) => k.startsWith("bigrepo/")).length };
+      recL(pStart.laeuft && !pStart.weg && !pStart.lang, "P",
+        fertig7 && ans7.counters["Errors"] === 2 && ans7.statusText === "Error" && (ans7.error ?? "").startsWith("Sync finished with errors") &&
+        !pNachher.weg && !pNachher.lang && !pMan.weg && !pMan.lang && pNachher.danach && pMan.danach && pMan.gross === BIG_COUNT - 2,
+        `beim Eingriff: Lauf läuft=${pStart.laeuft}, die beiden Dateien noch nicht im Vault (gelöscht ${!pStart.weg}, verlängert ${!pStart.lang}) · danach: Status ${q(ans7.statusText)}, Fehlerzeile ${q(ans7.error)}, Zähler Errors=${ans7.counters["Errors"]}, Created=${ans7.counters["New"]} · gelöschte Datei im Vault=${pNachher.weg}, im Manifest=${pMan.weg} · verlängerte Datei im Vault=${pNachher.lang}, im Manifest=${pMan.lang} · eine spätere Datei (${P_DANACH}) im Vault=${pNachher.danach}, im Manifest=${pMan.danach} · Manifest-Einträge unter bigrepo ${pMan.gross} von ${BIG_COUNT - 2} erwartet`);
+      // Quelle wiederherstellen (das nächste --setup baut sie ohnehin neu).
+      writeFileSync(join(BIG, P_WEG), pOrigWeg);
+      writeFileSync(join(BIG, P_LANG), pOrigLang);
 
       /* O8 */
       console.log("\nO8 · Wurzelwechsel in der Wartephase");

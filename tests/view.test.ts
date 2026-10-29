@@ -292,10 +292,21 @@ describe("DocsMirrorView", () => {
       expect(s.calls).toEqual([]);
     });
 
-    it("gibt es das Element nach dem Neuaufbau nicht mehr, bleibt es still", async () => {
+    it("gibt es das Element nach dem Neuaufbau nicht mehr, geht der Fokus auf die Summary derselben Gruppe", async () => {
       const s = await prep();
       keyed(s, "overwrite:a/c2.md").focus();
       expect(() => { s.set({ plan: plan([item("a/c1.md", "conflict", { src })]) }); }).not.toThrow();
+      expect(s.doc.activeElement).toBe(keyed(s, "summary:conflict"));
+    });
+
+    it("gibt es auch die Gruppe nicht mehr, bleibt der Fokus unberührt und nichts wird geworfen", async () => {
+      const s = await prep();
+      keyed(s, "overwrite:a/c2.md").focus();
+      const alt = s.doc.activeElement;
+      s.calls.length = 0;
+      expect(() => { s.set({ plan: plan([item("a/n.md", "new", { src })]) }); }).not.toThrow();
+      expect(s.calls).toEqual([]);
+      expect(s.doc.activeElement).toBe(alt);
     });
   });
 

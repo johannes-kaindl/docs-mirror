@@ -1,6 +1,6 @@
 # GUI-Smoke (Task 13)
 
-Gemessen am 2026-10-28 mit `npm run smoke:gui -- --port <Port>` (`scripts/gui-smoke.ts`) an einer Zweitinstanz mit eigenem Profil, Obsidian 1.15.0 (Fenstertitel), macOS, Fenster 1280×900, Oberfläche englisch (`--lang=en-US`), dunkles Theme. Quelle und Vault liegen im Staging (`STAGING_VAULTS_DIR`), der Vault wird von `buildVault` aus `fixtures/vault` gebaut, die Quelle von `--setup` aus `fixtures/source` plus dem, was Git nicht trägt (`node_modules`, Symlink, Datei über 5 MB, feste Änderungszeiten, leerer Ordner, zweite Quelle, große Quelle mit 4000 Dateien).
+Gemessen am 2026-10-28 (Erstlauf, Fokus-Rerun) und 2026-10-29 (Nacharbeit nach Review, alle Zahlen unten) mit `npm run smoke:gui -- --port <Port>` (`scripts/gui-smoke.ts`) an einer Zweitinstanz mit eigenem Profil, Obsidian 1.15.0 (Fenstertitel), macOS, Fenster 1280×900, Oberfläche englisch (`--lang=en-US`), dunkles Theme. Quelle und Vault liegen im Staging (`STAGING_VAULTS_DIR`), der Vault wird von `buildVault` aus `fixtures/vault` gebaut, die Quelle von `--setup` aus `fixtures/source` plus dem, was Git nicht trägt (`node_modules`, Symlink, Datei über 5 MB, feste Änderungszeiten, leerer Ordner, zweite Quelle, große Quelle mit 4000 Dateien).
 
 Ablauf: `npm run build`, `npm run smoke:gui -- --setup`, Zweitinstanz starten (Rezept im Kopf des Treibers), Lock holen (`--exclusive focus`, die Einstellungen öffnen ein eigenes Fenster), Lauf, Lock freigeben, Prozess der Zweitinstanz beenden. Ein Lauf stellt den gerätelokalen Zustand des Plugins selbst zurück. Flags: `--bilder <ordner>` (Screenshots), `--ohne-gross` (die Punkte mit der großen Quelle werden `skipped`), `--mutiert` und `--setup --mutiertes-main <datei>` (nur für Gegenproben).
 
@@ -8,7 +8,7 @@ Bedienung: Der Treiber klickt mit echten Mausereignissen (`clickReal`) auf die K
 
 ## Punkte
 
-Baseline-Lauf vor dem Fokus-Fix: 37 grün, 1 rot (O4c), 1 übersprungen, 0 nichts gemessen. Finale Bilanz nach dem Fokus-Fix (Commit 74c5da7, Obsidian 1.15.0): 38 grün, 0 rot, 1 übersprungen, 0 nichts gemessen von 39 Punkten (73 s).
+Baseline-Lauf vor dem Fokus-Fix: 37 grün, 1 rot (O4c), 1 übersprungen, 0 nichts gemessen. Bilanz nach dem Fokus-Fix und der Nacharbeit (Obsidian 1.15.0): 41 grün, 0 rot, 1 übersprungen, 0 nichts gemessen von 42 Punkten (rund 95 s).
 
 - `0` Plugin geladen, Zustand zurückgesetzt.
 - `O1` Befehl „Open“ bei eingeklappter rechter Seitenleiste: Ansicht 276×816 px statt 0×0, ein Blatt.
@@ -19,7 +19,9 @@ Baseline-Lauf vor dem Fokus-Fix: 37 grün, 1 rot (O4c), 1 übersprungen, 0 nicht
 - `E`, `F`, `G`, `H` geändert, gelöscht (Warnknopf, leerer Ordner weg), Fremddatei bleibt (nur im Vault, nicht im Manifest), im Vault verändert (Überschreiben stellt die Quelle her).
 - `O4a`–`O4c` Konflikte: „Alle überschreiben“ setzt `checked` und `disabled`, nur das angekreuzte wird überschrieben; der Fokus auf einem Kästchen überlebt den Neuaufbau (`data-dmr-focus`, davor rot).
 - `O10`, `O10c` Doppelter Auslöser: ein Lauf, ein „läuft bereits“; Startlauf-Timer und Befehle nie gleichzeitig.
-- `I`, `J` Wurzel nicht vorhanden und leerer Ordner: blockiert, Vault und Manifest unverändert.
+- `I`, `J` Wurzel nicht vorhanden und leerer Ordner: blockiert (Status, Meldung), Vault und Manifest (7 Einträge) unverändert. Ehrlich: Beide Punkte ändern die Wurzel, damit ändert sich der Fingerabdruck, und die Bestätigungspflicht („Settings changed“) fängt ein Löschen schon vorher ab. Sie belegen die Meldung und den Zustand nach dem Blockieren, nicht allein den Löschschutz.
+- `I2`, `J2` Der Löschschutz allein: Wurzel und Einstellungen bleiben, der Fingerabdruck ist vorher und nachher gleich, ein Vorlauf zeigt, dass kein Plan auf Bestätigung wartet, und die sieben Löschungen liegen unter der Schwelle (20). Dann verschwindet die Quelle (`I2`: Ordner umbenannt) oder alle Treffer (`J2`: die drei `docs`-Ordner weggenommen). Erwartet: „Source unreachable“ beziehungsweise „Error“ mit „the source is empty“, 8 Dateien im Vault und 7 Manifest-Einträge unverändert. Ohne Löschschutz (Mutation `I`) verliert der Vault die sieben gespiegelten Dateien (8 → 1).
+- `P` Eine Quelldatei wird WÄHREND des Laufs gelöscht, eine andere verlängert (beide stehen am Ende der Reihenfolge und sind beim Eingriff noch nicht geschrieben, der Lauf läuft nachweislich): Zähler Errors=2, Status „Error“ („Sync finished with errors“), beide Dateien weder im Vault noch im Manifest, eine spätere Datei ist da und im Manifest, 3998 Manifest-Einträge unter `bigrepo`. Grenze: die Geschwindigkeit des Laufs reicht, weil der Treiber die Reihenfolge nutzt und die Dateien ans Ende der Pfad-Sortierung legt; ein Wettlauf mit einer beliebigen Datei wird nicht gemessen.
 - `O11` Wurzel „/“: Warnung sichtbar.
 - `K`, `K2`, `O3a`, `O3b` Statuszeile in sechs Zuständen mit Text, Icon und aria-label; `is-checking` dreht sich (Animation `dmr-spin` läuft), startet beim Neuaufbau nicht neu (gleiches Element, Uhr 457→1432 ms in 979 ms), unter `prefers-reduced-motion` aus.
 - `L`, `L2` Aktionszeile bei 276, 196 und 116 px Breite erreichbar (bei 116 px brechen die Knöpfe um), Körper rollt darunter; Gegenprobe mit überdeckendem Körper wird rot.
@@ -27,6 +29,18 @@ Baseline-Lauf vor dem Fokus-Fix: 37 grün, 1 rot (O4c), 1 übersprungen, 0 nicht
 - `N0`, `N`, `O6` Startlauf: Schalter aus kein Lauf; Schalter an kein Modal, Notice „Sync needs confirmation“; Ladezeit 7 ms, Lauf beginnt nach 2026 ms, größter Ruckler der Oberfläche 27 ms bei einer Quelle mit 4000 Dateien.
 - `M`, `O5` Entladen mitten im Lauf: der Lauf endet (532 von 4000 Dateien), kein Temp-Rest, keine halbe Datei, das Teil-Manifest trägt genau die geschriebenen Dateien.
 - `O7`, `O8` Wurzelwechsel mitten im Lauf: der Lauf liest den alten Baum zu Ende; Wurzelwechsel in der Wartephase: der bestätigte Lauf wartet erneut mit dem Grund „Settings changed“, im Vault wird nichts gelöscht.
+
+## Beobachtungen, nicht behoben
+
+Bei 116 px Breite der Seitenleiste bricht das Statuswort mitten im Wort („confirmati/on“, `overflow-wrap: anywhere` an `.dmr-status-text`).
+
+In den Konfliktzeilen sitzen Kästchen und Pfad nicht auf einer Grundlinie (das Kästchen steht höher), und die Notiz „Already in the vault …“ steht ohne Einzug darunter.
+
+Die Karte „Last run“ bleibt während eines Laufs sichtbar und zeigt den vorigen Lauf, das kann mit dem laufenden verwechselt werden.
+
+Die Zeitangabe in der Überschrift der Ergebniskarte („Last run: 10/28/2026, 12:06:39 PM“) bricht in der schmalen Seitenleiste um.
+
+Notices liegen oben rechts über der Aktionszeile und fangen dort einen Klick ab (Obsidian-Verhalten, der Treiber räumt sie vor jedem Klick weg).
 
 ## Nicht gemessen und Grenzen
 
@@ -43,11 +57,17 @@ Baseline-Lauf vor dem Fokus-Fix: 37 grün, 1 rot (O4c), 1 übersprungen, 0 nicht
 
 ## Gegenproben
 
-Mutation in einer temporären Kopie des Quellcodes, mit esbuild zu einem eigenen `main.js` gebaut und in den Plugin-Ordner des Staging-Vaults gelegt; der Repo-Stand blieb unberührt. Jede Mutation macht die genannten Punkte rot, der unmutierte Abschlusslauf ist wieder grün (38/0/1/0).
+Mutation in einer temporären Kopie von `src/` (mit `tsconfig.json`), gebaut mit denselben Optionen wie `npm run build` (esbuild, minify, cjs, es2022), in den Plugin-Ordner des Staging-Vaults gelegt. Der Repo-Stand blieb unberührt. Der Kontroll-Build aus derselben Kopie ohne Mutation ist md5-gleich dem Repo-`main.js` (a5cc849718588f76c7ad977b15fc931d); jede Mutation weicht davon ab. Nach den Mutationen lief der Abschlusslauf mit dem unmutierten Build.
 
-- `C`: Scan ohne `excludedNames` → B und C rot („node_modules“ in Vorschau und Vault).
-- `G`: Vault-only-Dateien als Löschung geplant und die Manifest-Prüfung im Löschen entfernt → G rot (Fremddatei gelöscht).
-- `I`: Löschschutz bei nicht erreichbarer und leerer Quelle entfernt → I und J rot (Status „Waiting for confirmation“ statt „Source unreachable“; die Bestätigungspflicht fängt das Löschen dann noch ab).
-- `M`: `abort()` beim Entladen entfernt → M und O5 rot (der Lauf schreibt nach dem Entladen weiter, 142 → 950 Dateien, Manifest und Vault weichen ab).
-- `O1`: `revealLeaf` für das neue Blatt entfernt → O1 rot (Ansicht 0×0 px, Seitenleiste eingeklappt).
-- `O4c`: die Fokus-Wiederherstellung (`next?.focus(...)`) entfernt → O4c rot (Fokus danach `body`).
+| Punkt | Mutation | md5 mutiert | rot sichtbar |
+|---|---|---|---|
+| Kontrolle | keine | a5cc849718588f76c7ad977b15fc931d (= Repo) | 41 grün, 0 rot |
+| C | Scan ohne `excludedNames` | ad2216c51c36af84d505097d07ebe581 | B, B2, C rot (`node_modules`-Pfade in Vorschau und Vault, New=8) |
+| G | Vault-only als Löschung geplant, Manifest-Prüfung im Löschen entfernt | ee197e8e373a52ad96dfa4d7d575a457 | G rot (Fremddatei gelöscht) |
+| I, I2, J2 | Löschschutz bei nicht erreichbarer und leerer Quelle entfernt (`guards.ts` beide Zweige, `plan.ts`) | 8e35693c9c5b3137de580b39f232510a | I2 und J2 rot: der Vault verliert die gespiegelten Dateien (8 → 1), Manifest geändert; I und J rot (Status „Waiting for confirmation“, die Bestätigungspflicht fängt dort noch ab) |
+| M, O5 | `abort()` beim Entladen entfernt | 3e1a6277d7f0d04970fca223f8842b7e | M rot (Lauf endet nicht: 331 → 744 → 1590 Dateien, ein Temp-Rest), O5 rot (Manifest 2293, Vault 1593); K2, O3a, O3b, O7, P werden dann nicht gemessen |
+| O1 | `revealLeaf` für das neue Blatt entfernt | 29103a9c56f0518237b636a5bbb5896b | O1 rot (Ansicht 0×0, Seitenleiste eingeklappt) |
+| O4c | Fokus-Wiederherstellung `next?.focus(...)` entfernt | cefd0939112abf9d4656b22f3b68c4f0 | O4c rot (Fokus danach `<BODY>`) |
+| P | Größenprüfung „source changed during the run“ entfernt | c2e5b91adc402e52f1f13c434c3fe34c | P rot (Errors=1 statt 2, die verlängerte Datei wird geschrieben und steht im Manifest: 3999 statt 3998), O7 rot als Folge |
+
+Der Fokus-Rückfall auf die Gruppen-Summary (verschwindet das Ziel) ist im Smoke nicht erreichbar (der Smoke-Plan behält das Ziel) und wird im Unit-Test belegt: ohne den Rückfall ist `tests/view.test.ts` rot (1 von 27), mit ihm grün.
