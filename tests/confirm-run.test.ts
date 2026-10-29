@@ -37,7 +37,7 @@ describe("confirmRun", () => {
   it("Gründe stehen in der Reihenfolge des Vertrags", () => {
     void confirmRun({} as never, ["threshold", "settings-changed", "total-size"], plan(items));
     const lines = paragraphs();
-    expect(lines.indexOf("This run deletes more files than the threshold allows.")).toBeLessThan(lines.indexOf("Settings changed since the last run, or the state of this device is unknown."));
+    expect(lines.indexOf("This run deletes at least as many files as the threshold.")).toBeLessThan(lines.indexOf("Settings changed since the last run, or the state of this device is unknown."));
     expect(lines.indexOf("Settings changed since the last run, or the state of this device is unknown.")).toBeLessThan(lines.indexOf("The files to mirror exceed the total size limit."));
   });
 
@@ -74,6 +74,11 @@ describe("confirmRun", () => {
     expect(buttons()[1].destructiveSet).toBe(false);
     expect(buttons()[1].ctaSet).toBe(true);
     void confirmRun({} as never, ["conflicts"], plan([item("a", "conflict", { src })]), 1);
+    expect(buttons()[1].destructiveSet).toBe(true);
+  });
+
+  it("M5: eine im Vault veränderte Datei, die der Lauf mit der Quellversion ersetzt, macht den Knopf destruktiv", () => {
+    void confirmRun({} as never, ["first-run"], plan([item("a", "vault-modified", { src })]));
     expect(buttons()[1].destructiveSet).toBe(true);
   });
 

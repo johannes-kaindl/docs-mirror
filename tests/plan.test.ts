@@ -261,6 +261,42 @@ describe("buildPlan", () => {
     expect(p.sourceState).toBe(state);
   });
 
+  it("I3: nicht lesbare Quelle bei fremder Datei am Ziel → conflict/unreadable, buildPlan wirft nicht, Lauf geht weiter", async () => {
+    const v = fakeVault();
+    v.put("r/docs/a.md", "fremd", 2000);
+    v.put("r/docs/ok.md", "ok", 2000);
+    const files = { "r/docs/a.md": { content: "fremd" }, "r/docs/b.md": { content: "b" } };
+    const p = await buildPlan({
+      scan: scanOf(files), manifest: {}, vault: v,
+      readSource: (path) => (path === "r/docs/a.md" ? Promise.reject(new Error("EACCES")) : Promise.resolve(enc.encode("b"))),
+    });
+    expect(p.items.find((i) => i.path === "r/docs/a.md")).toMatchObject({ cls: "conflict", reason: "unreadable", vaultPath: "r/docs/a.md" });
+    expect(clsOf(p, "r/docs/b.md")).toBe("new");
+    expect(p.totalBytes).toBe(1);
+  });
+
+  it("I3: nicht lesbare Quelle bei geänderter Zeit → conflict/unreadable, der Manifest-Eintrag bleibt, zählt nicht in totalBytes", async () => {
+    const v = fakeVault();
+    v.put("r/docs/a.md", "alt", 2000);
+    const old = entry("r/docs/a.md", "alt");
+    const p = await buildPlan({
+      scan: scanOf({ "r/docs/a.md": { content: "neu", mtime: 5000 } }), manifest: manifestOf({ ...old, srcSize: 3 }), vault: v,
+      readSource: () => Promise.reject(new Error("ENOENT")),
+    });
+    expect(p.items).toEqual([expect.objectContaining({ path: "r/docs/a.md", cls: "conflict", reason: "unreadable", entry: expect.objectContaining({ hash: old.hash }) })]);
+    expect(p.totalBytes).toBe(0);
+    expect(p.forget).toEqual([]);
+  });
+
+  it("M2: ein nur in der Schreibweise umbenannter, nicht lesbarer Quellordner löst keine Löschung aus", async () => {
+    const v = fakeVault();
+    v.put("Repo/docs/a.md", "a", 2000);
+    const c = setup({ "z/docs/z.md": { content: "z" } }, manifestOf(entry("Repo/docs/a.md", "a")), { unreadable: ["repo/docs"], incomplete: true }, v);
+    const p = await c.plan();
+    expect(p.counts.delete).toBe(0);
+    expect(p.unchecked).toBe(1);
+  });
+
   it("incomplete: Einträge unter einem unreadable-Präfix bleiben unangetastet und zählen als nicht geprüft", async () => {
     const v = fakeVault();
     v.put("r/docs/sub/a.md", "a", 2000);

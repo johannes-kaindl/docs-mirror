@@ -74,6 +74,12 @@ export async function buildPlan(input: {
   const forget: string[] = [];
   let unchecked = 0;
 
+  /** Hash der Quelldatei; `null`, wenn sie sich nicht lesen lässt (EACCES, verschwunden): die Datei wird ein Konflikt
+   *  `unreadable`, der Plan bricht nicht ab. */
+  const sourceHash = async (path: string): Promise<string | null> => {
+    try { return hashOf(await readSource(path)); } catch { return null; }
+  };
+
   const byFold = new Map<string, string[]>();
   for (const real of await vault.list()) {
     const k = fold(real);
@@ -128,7 +134,11 @@ export async function buildPlan(input: {
         continue;
       }
       const vh = hashOf(await vault.read(real));
-      const sh = hashOf(await readSource(path));
+      const sh = await sourceHash(path);
+      if (sh === null) {
+        items.push({ path, cls: "conflict", src, vaultPath: real, reason: "unreadable" });
+        continue;
+      }
       if (vh === sh) {
         const adopted: ManifestEntry = { path, srcSize: src.size, srcMtime: src.mtime, size: st.size, mtime: st.mtime, hash: vh };
         items.push({ path, cls: "unchanged", src, entry: adopted });
@@ -150,8 +160,9 @@ export async function buildPlan(input: {
     } else if (src.mtime === old.srcMtime) {
       items.push({ path, cls: "unchanged", src, entry: current });
     } else {
-      const sh = hashOf(await readSource(path));
-      if (sh !== old.hash) items.push({ path, cls: "changed", src, entry: old, vaultPath: real });
+      const sh = await sourceHash(path);
+      if (sh === null) items.push({ path, cls: "conflict", src, entry: old, vaultPath: real, reason: "unreadable" });
+      else if (sh !== old.hash) items.push({ path, cls: "changed", src, entry: old, vaultPath: real });
       else items.push({ path, cls: "unchanged", src, entry: { ...current, srcSize: src.size, srcMtime: src.mtime } });
     }
   }
@@ -164,7 +175,7 @@ export async function buildPlan(input: {
     const k = fold(e.path);
     if (sourceKeys.has(k) || collisionKeys.has(k)) continue;
     if (scan.state !== "ok") continue;
-    if (scan.unreadable.some((u) => underPrefix(e.path, u))) {
+    if (scan.unreadable.some((u) => underPrefix(fold(e.path), fold(u)))) {
       unchecked++;
       continue;
     }

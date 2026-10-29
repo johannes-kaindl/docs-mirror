@@ -1,4 +1,4 @@
-import { Notice, Platform, Plugin, getLanguage } from "obsidian";
+import { FileSystemAdapter, Notice, Platform, Plugin, getLanguage } from "obsidian";
 import { t } from "./i18n/strings";
 import type { ConfirmReason } from "./core/guards";
 import { statusOf, type RunInfo } from "./core/run-info";
@@ -72,6 +72,11 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
       settings: () => this.settings,
       yieldToUi: () => new Promise<void>((resolve) => { this.timers.set(resolve, 0); }),
       now: () => Date.now(),
+      // Das Basis-Verzeichnis des Vaults kennt nur der Desktop-Adapter; der Kern bekommt nur den Pfad (kein fs im Kern).
+      vaultBasePath: () => {
+        const adapter = this.app.vault.adapter;
+        return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null;
+      },
     });
 
     this.registerView(VIEW_TYPE_DOCS_MIRROR, (leaf) => new DocsMirrorView(leaf, this));
@@ -157,7 +162,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
     } finally {
       this.confirming = false;
     }
-    if (!ok) return;
+    if (!ok || this.unloaded) return;
     await this.perform("manual", (signal, onProgress) => this.runner.execute(chosen, signal, onProgress));
   }
 
@@ -207,6 +212,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
   /* ── Läufe ──────────────────────────────────────────────── */
 
   private async perform(mode: "manual" | "startup", start: (signal: AbortSignal, onProgress: (done: number, total: number) => void) => Promise<RunOutcome>): Promise<void> {
+    if (this.unloaded) return;
     if (!Platform.isDesktopApp) {
       if (mode === "manual") new Notice(t("notice.desktopOnly"));
       return;
@@ -250,6 +256,8 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
         await this.reloadLast();
         if (outcome.reason === "not-configured") {
           if (manual) new Notice(t("notice.blocked.not-configured"));
+        } else if (outcome.reason === "vault-is-root") {
+          new Notice(t("notice.blocked.vault-is-root"));
         } else {
           new Notice(t(outcome.reason === "source-unreachable" ? "notice.blocked.unreachable" : "notice.blocked.empty"));
         }

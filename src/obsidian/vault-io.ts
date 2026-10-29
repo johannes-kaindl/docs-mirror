@@ -17,7 +17,7 @@ function toArrayBuffer(data: Uint8Array): ArrayBuffer {
  *
  *  Gemessen (docs/ADAPTER-MESSUNG.md): `rename` wirft bei bestehendem Ziel und bei fehlendem Elternordner,
  *  `remove` wirft bei fehlender Datei und auf einem Ordner, `rmdir(path, false)` wirft auch auf einem leeren
- *  Ordner. Deshalb: `replace` = vorhandenes Ziel entfernen + `rename`, `remove` ist idempotent,
+ *  Ordner. Deshalb: `replace` = nur `rename` (wirft bei vorhandenem Ziel; der Aufrufer entfernt das alte Ziel), `remove` ist idempotent,
  *  `removeIfEmpty` prüft per `list` und räumt dann mit `rmdir(path, true)`. */
 export function createVaultPort(app: App, tempDir: string): VaultPort {
   const adapter = app.vault.adapter;
@@ -35,13 +35,15 @@ export function createVaultPort(app: App, tempDir: string): VaultPort {
     if (!r.ok) throw new Error(`docs-mirror: unsafe vault path "${p}" (${r.problem})`);
     return p;
   };
-  /** Zielpfad im Vault: wie `safe`, und kein Wurzelname im Temp-Schema (der würde als Temp-Datei gelesen). */
+  const underConfig = (p: string): boolean => p === configDir || p.startsWith(`${configDir}/`);
+  /** Zielpfad im Vault: wie `safe`, kein Wurzelname im Temp-Schema (der würde als Temp-Datei gelesen) und nie unter
+   *  `configDir` (dort liegen Einstellungen und Plugins, die der Spiegel nicht anfasst). */
   const target = (p: string): string => {
     safe(p);
     if (isTempName(p)) throw new Error(`docs-mirror: "${p}" is reserved for temporary files`);
+    if (underConfig(p)) throw new Error(`docs-mirror: refusing to write "${p}" (inside ${configDir})`);
     return p;
   };
-  const underConfig = (p: string): boolean => p === configDir || p.startsWith(`${configDir}/`);
   /** Temp-Namen laufen über ihre eigene Prüfung (Präfix, kein `/`), alles andere über `safe`. */
   const real = (p: string): string => (isTempName(p) ? `${tempDir}/${p}` : safe(p));
   const tempOnly = (name: string): string => {
@@ -80,7 +82,8 @@ export function createVaultPort(app: App, tempDir: string): VaultPort {
     async replace(tempName, path) {
       const to = target(path);
       const from = tempOnly(tempName);
-      if (await adapter.exists(to)) await adapter.remove(to);
+      // Löscht nie selbst: `rename` wirft bei vorhandenem Ziel, und das ist gewollt (B1). Ein Ziel, das erst nach dem
+      // Planen entstanden ist (fremde Datei), bleibt so unberührt; das Entfernen des alten Ziels besorgt `applyPlan`.
       await adapter.rename(from, to);
     },
     async remove(path) {

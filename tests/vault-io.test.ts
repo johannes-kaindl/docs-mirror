@@ -38,18 +38,17 @@ describe("createVaultPort", () => {
     expect(dec(new Uint8Array(adapter.files.get(`${TEMP}/.dmr-tmp-1`)!.data))).toBe("hallo");
   });
 
-  it("replace: erst das Ziel entfernen, dann umbenennen (rename auf ein bestehendes Ziel wirft)", async () => {
+  it("replace auf ein bestehendes Ziel wirft, das Ziel bleibt unverändert und es wird nie entfernt", async () => {
     const { adapter, port } = setup({ files: { "docs/a.md": "alt" } });
     await port.writeTemp(".dmr-tmp-0", enc("neu"), 2000);
     adapter.calls.length = 0;
-    await port.replace(".dmr-tmp-0", "docs/a.md");
-    const ops = adapter.calls.filter((c) => c.startsWith("remove:") || c.startsWith("rename:"));
-    expect(ops).toEqual([`remove:docs/a.md`, `rename:${TEMP}/.dmr-tmp-0>docs/a.md`]);
-    expect(dec(new Uint8Array(adapter.files.get("docs/a.md")!.data))).toBe("neu");
-    expect(adapter.files.get("docs/a.md")!.mtime).toBe(2000);
+    await expect(port.replace(".dmr-tmp-0", "docs/a.md")).rejects.toThrow();
+    expect(adapter.calls.some((c) => c.startsWith("remove:"))).toBe(false);
+    expect(dec(new Uint8Array(adapter.files.get("docs/a.md")!.data))).toBe("alt");
+    expect(adapter.files.has(`${TEMP}/.dmr-tmp-0`)).toBe(true);
   });
 
-  it("replace auf ein fehlendes Ziel: nur rename, kein remove", async () => {
+  it("replace auf ein fehlendes Ziel: nur rename, kein remove, mtime bleibt", async () => {
     const { adapter, port } = setup({ folders: ["docs"] });
     await port.writeTemp(".dmr-tmp-0", enc("neu"), 2000);
     adapter.calls.length = 0;
@@ -63,6 +62,20 @@ describe("createVaultPort", () => {
     await port.writeTemp(".dmr-tmp-0", enc("neu"), 2000);
     await expect(port.replace(".dmr-tmp-0", "docs/a.md")).rejects.toThrow();
     expect(adapter.files.has(`${TEMP}/.dmr-tmp-0`)).toBe(true);
+  });
+
+  it("M3: Zielpfade unter configDir werden abgelehnt (replace, mkdirp), nichts wird angefasst", async () => {
+    const { adapter, port } = setup({ files: { ".obsidian/app.json": "{}" } });
+    await port.writeTemp(".dmr-tmp-0", enc("x"), 1);
+    adapter.calls.length = 0;
+    for (const bad of [".obsidian", ".obsidian/app.json", ".obsidian/plugins/x/main.js"]) {
+      await expect(port.replace(".dmr-tmp-0", bad), `replace ${bad}`).rejects.toThrow(/refusing|configDir|\.obsidian/);
+      await expect(port.mkdirp(bad), `mkdirp ${bad}`).rejects.toThrow();
+    }
+    expect(adapter.calls).toEqual([]);
+    expect(dec(new Uint8Array(adapter.files.get(".obsidian/app.json")!.data))).toBe("{}");
+    // Ein Name, der nur mit dem Präfix beginnt, ist kein Unterpfad von configDir.
+    await expect(port.mkdirp(".obsidianX/docs")).resolves.toBeUndefined();
   });
 
   it("remove: fehlende Datei ist kein Fehler, vorhandene geht; Temp-Namen werden aufgelöst", async () => {

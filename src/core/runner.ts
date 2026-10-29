@@ -7,6 +7,7 @@ import type { Manifest } from "./manifest";
 import { buildPlan, type Plan, type PlanClass, type VaultPort } from "./plan";
 import type { RunCounts, RunInfo } from "./run-info";
 import { scanSource, type SourcePort } from "./scan";
+import { locateVault } from "./vault-location";
 import { validateRoot, type DocsMirrorSettings } from "./settings";
 
 /** Gerätelokaler Zustand (Wurzelpfad, Manifest, Fingerabdruck, letzter Lauf). */
@@ -23,11 +24,14 @@ export interface RunnerDeps {
   settings: () => DocsMirrorSettings;
   yieldToUi: () => Promise<void>;
   now: () => number;
+  /** Basispfad des Vaults im Dateisystem (der Host bestimmt ihn je Lauf); `null`/fehlend = unbekannt. Liegt der Vault
+   *  unter der Wurzel, schließt der Scan ihn aus; ist er die Wurzel, blockiert der Lauf. */
+  vaultBasePath?: () => string | null;
 }
 
 export type RunOutcome =
   | { kind: "busy" }
-  | { kind: "blocked"; reason: "not-configured" | "source-unreachable" | "source-empty" }
+  | { kind: "blocked"; reason: "not-configured" | "vault-is-root" | "source-unreachable" | "source-empty" }
   | { kind: "waiting"; plan: Plan; reasons: ConfirmReason[] }
   | { kind: "done"; info: RunInfo; aborted: boolean };
 
@@ -46,7 +50,8 @@ const ZERO: RunCounts = { created: 0, updated: 0, unchanged: 0, deleted: 0, over
 const ABORTED = new Error("aborted");
 const GUARDED: PlanClass[] = ["delete", "conflict", "vault-modified"];
 
-/** Gleicher Plan im Sinn der Bestätigung: gleiche Zähler UND gleiche Pfade in den Klassen, die der Mensch gesehen hat. */
+/** Gleicher Plan im Sinn der Bestätigung: gleiche Zähler UND gleiche Pfade in den Klassen, die der Mensch gesehen hat.
+ *  Die Bestätigungsgründe prüft `start` zusätzlich (ein neuer Grund bei gleichem Plan fragt erneut). */
 function samePlan(a: Plan, b: Plan): boolean {
   for (const k of Object.keys(a.counts) as PlanClass[]) if (a.counts[k] !== b.counts[k]) return false;
   for (const cls of GUARDED) {
@@ -60,6 +65,7 @@ function samePlan(a: Plan, b: Plan): boolean {
 export function createRunner(deps: RunnerDeps): Runner {
   const guard = createBusyGuard();
   let pendingPlan: Plan | null = null;
+  let pendingReasons: ConfirmReason[] = [];
 
   const failed = (fingerprint: string, error: string): RunInfo => ({
     at: deps.now(), ok: false, error, counts: { ...ZERO }, fingerprint,
@@ -77,7 +83,7 @@ export function createRunner(deps: RunnerDeps): Runner {
   };
 
   /** Scan, Plan, Sicherungen. Wirft nie (auch nicht, wenn das Speichern wirft); Fehler und Sperren werden gespeichert (`last`), das Manifest bleibt unberührt. */
-  async function prepare(load: Loaded, root: string, signal: AbortSignal): Promise<Prepared> {
+  async function prepare(load: Loaded, root: string, skipPaths: string[], signal: AbortSignal): Promise<Prepared> {
     const settings = deps.settings();
     const fingerprint = settingsFingerprint(settings, root);
     if (signal.aborted) return { kind: "aborted" };
@@ -86,7 +92,7 @@ export function createRunner(deps: RunnerDeps): Runner {
       const scan = await scanSource(deps.source, settings, async () => {
         await pacer.tick();
         if (signal.aborted) throw ABORTED;
-      });
+      }, { skipPaths });
       const manifest = load.manifest ?? {};
       const plan = await buildPlan({ scan, manifest, vault: deps.vault, readSource: deps.readSource });
       const g = checkGuards(plan, {
@@ -147,7 +153,9 @@ export function createRunner(deps: RunnerDeps): Runner {
     const load = await deps.state.load();
     const rootCheck = validateRoot(load.root);
     if (!rootCheck.ok) return { kind: "blocked", reason: "not-configured" };
-    const prep = await prepare(load, rootCheck.root, signal);
+    const where = locateVault(rootCheck.root, deps.vaultBasePath?.() ?? null);
+    if (where.kind === "same") return { kind: "blocked", reason: "vault-is-root" };
+    const prep = await prepare(load, rootCheck.root, where.kind === "below" ? [where.rel] : [], signal);
     if (prep.kind === "blocked") return { kind: "blocked", reason: prep.reason };
     if (prep.kind === "aborted") {
       // Vor dem Scan abgebrochen: nichts gelesen, nichts gespeichert.
@@ -158,10 +166,12 @@ export function createRunner(deps: RunnerDeps): Runner {
     if (mode === "run") {
       if (confirm.length > 0) {
         pendingPlan = plan;
+        pendingReasons = confirm;
         return { kind: "waiting", plan, reasons: confirm };
       }
-    } else if (pendingPlan === null ? confirm.length > 0 : !samePlan(pendingPlan, plan)) {
+    } else if (pendingPlan === null ? confirm.length > 0 : !samePlan(pendingPlan, plan) || confirm.some((r) => !pendingReasons.includes(r))) {
       pendingPlan = plan;
+      pendingReasons = confirm;
       return { kind: "waiting", plan, reasons: confirm };
     }
     return perform(plan, manifest, fingerprint, mode === "run" ? new Set() : overwrite, signal, onProgress);

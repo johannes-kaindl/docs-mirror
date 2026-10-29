@@ -404,6 +404,25 @@ describe("applyPlan — Abbruch und Fehler", () => {
     expect(withEntry.items[0].reason).toBe("vault-missing");
   });
 
+  it("B1: Ziel entsteht nach dem Planen (new) → replace wirft, Fehler gezählt, fremde Datei unverändert, Temp aufgeräumt, kein Eintrag", async () => {
+    const v = vaultOf();
+    const h = harness(v, { "d/n.md": "quelle" });
+    const racing = Object.assign(Object.create(v) as FakeVault, {
+      writeTemp: async (name: string, data: Uint8Array, mtime: number) => {
+        await v.writeTemp(name, data, mtime);
+        v.put("d/n.md", "fremd", 5);
+      },
+    });
+    const plan = planOf([newItem("d/n.md", "quelle")]);
+    const r = await applyPlan(plan, {}, { ...h.io, vault: racing }, OPTS);
+    expect(r.counts.errors).toBe(1);
+    expect(r.counts.created).toBe(0);
+    expect(v.text("d/n.md")).toBe("fremd");
+    expect(v.tempNames()).toEqual([]);
+    expect(r.manifest["d/n.md"]).toBeUndefined();
+    expect(v.calls.ops.some((o) => o === "remove:d/n.md")).toBe(false);
+  });
+
   it("tick() steht am Ende jeder Iteration, auch nach Fehlern", async () => {
     const v = vaultOf();
     v.put("d/gone.md", "g");

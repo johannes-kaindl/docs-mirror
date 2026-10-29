@@ -269,7 +269,7 @@ describe("buildViewModel: Hinweise zum Plan", () => {
     const m = vm({ status: "waiting", waiting: true, plan: plan([]), reasons: ["first-run", "threshold", "settings-changed", "total-size", "conflicts"] });
     expect(m.reasons).toEqual([
       "First run: check the plan before anything is written.",
-      "This run deletes more files than the threshold allows.",
+      "This run deletes at least as many files as the threshold.",
       "Settings changed since the last run, or the state of this device is unknown.",
       "The files to mirror exceed the total size limit.",
       "Some files already exist in the vault and were not created by this plugin.",

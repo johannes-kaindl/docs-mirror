@@ -69,7 +69,7 @@ scripts/probe-adapter.ts    Adapter-Messung (docs/ADAPTER-MESSUNG.md)
 
 ## Gotchas
 
-- **Adapter-Semantik (2026-10-28, Obsidian 1.15.0, `docs/ADAPTER-MESSUNG.md`):** `rename` wirft, wenn das Ziel existiert, und wenn der Elternordner fehlt. Darum: Ziel vorher entfernen (`replace`), Elternordner vor dem Schreiben anlegen (`mkdirp`).
+- **Adapter-Semantik (2026-10-28, Obsidian 1.15.0, `docs/ADAPTER-MESSUNG.md`):** `rename` wirft, wenn das Ziel existiert, und wenn der Elternordner fehlt. Darum: `applyPlan` entfernt das alte Ziel vor `replace`, Elternordner vor dem Schreiben anlegen (`mkdirp`).
 - **`rmdir(path, false)` wirft auch auf einem leeren Ordner** (EISDIR). `removeIfEmpty` prüft zweimal per `list` und ruft dann `rmdir(dir, true)`; Restfenster: legt in Millisekunden ein anderer Prozess eine Datei an, wird sie mitgelöscht.
 - **`adapter.list` nennt Dateien im configDir** (`.obsidian/…`); der Port schließt configDir aus.
 - **`stat` direkt nach `rename` sieht die Datei, der Vault-Index (`getAbstractFileByPath`) noch nicht.** Darum nur über den Adapter arbeiten, nie über TFile.
@@ -78,9 +78,11 @@ scripts/probe-adapter.ts    Adapter-Messung (docs/ADAPTER-MESSUNG.md)
 - **Wurzel pro Lauf eingefroren:** `perform` baut den Quellanschluss einmal. Ein Wurzelwechsel mitten im Lauf wirkt erst im nächsten Lauf (Smoke O7, 2026-10-28).
 - **Fokus beim Neuaufbau:** `render()` merkt den Fokus über `data-dmr-focus`; ohne das fiel er auf `body` (Smoke O4c, Commit 74c5da7, 2026-10-28).
 - **Ordnermuster kennen keine Brace-Globs.** `**/{docs,doc}` ist ein wörtliches Muster und trifft nur einen Ordner namens `{docs,doc}` (gemessen 2026-10-29 mit `src/vendor/kit/ignore.ts`). Je Zeile ein Muster schreiben. Der Kommentar in `src/core/settings.ts` (`parseList`) nennt Brace-Globs noch als Fall; das ist ein Befund, kein Verhalten.
+- **`replace` löscht nie ein Ziel selbst (2026-10-29, B1 der Gesamt-Review):** `rename` wirft bei vorhandenem Ziel, und das schützt eine Datei, die erst nach dem Planen entstand; das alte Ziel entfernt nur `applyPlan` (Test `tests/apply.test.ts` „B1“, `tests/vault-io.test.ts`).
+- **Die Wurzel darf den Vault nicht enthalten (2026-10-29, I1):** liegt der Vault unter der Wurzel, schließt der Scan ihn über `skipPaths` aus, sonst läse der nächste Lauf die Spiegelkopien als Quelle; ist die Wurzel der Vault, blockiert der Lauf (`vault-is-root`). Der Basispfad kommt je Lauf aus `FileSystemAdapter.getBasePath()`; Symlinks löst der reine Vergleich nicht auf (`src/core/vault-location.ts`).
+- **Fokus-Rückfall über `data-dmr-group` (2026-10-29):** fehlt das fokussierte Element nach dem Neuaufbau (etwa eine abgehakte Zeile), fällt der Fokus auf die Zusammenfassung seiner Gruppe zurück (`GROUP_ATTR` in `src/obsidian/plan-view.ts`, Commit ff763e7); ohne den Rückfall landete er auf `body`.
 - **Kollisionen auf APFS:** Namen, die sich nur in Groß- und Kleinschreibung oder in NFC/NFD unterscheiden, zählen als Konflikt `case-collision` und werden nie überschrieben (Messung 2026-10-28: `gross.md` trifft `Gross.md`, NFD trifft NFC).
 - **Symlinks und Dateien über `maxFileBytes` oder mit fremder Endung fallen aus dem Scan.** War so eine Datei schon gespiegelt, plant der Lauf ihre Löschung im Vault. Das ist gewollt (Spec § 3), gehört aber in die Nutzer-Doku.
-- **Die Schwelle ist im Code `>=`, im Einstellungstext steht „mehr als“.** Gemessen im Code (`src/core/guards.ts`), nicht geändert; Befund für den Master.
 - **Dach-Suche:** `grep` ist auf diesem Rechner ugrep und respektiert `.gitignore`; für Suchen über Repos `/usr/bin/grep` (Belege 2026-09-16, 2026-10-03).
 
 ## Abweichungen von der Leitkonvention

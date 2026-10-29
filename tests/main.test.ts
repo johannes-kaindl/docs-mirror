@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { makeFakeApp, Modal, Notice, Platform, WorkspaceLeaf } from "./vendor/kit/obsidian-mock";
+import { FileSystemAdapter, makeFakeApp, Modal, Notice, Platform, WorkspaceLeaf } from "./vendor/kit/obsidian-mock";
 import { setLang } from "../src/vendor/kit/i18n";
 import DocsMirrorPlugin from "../src/main";
 import { createRunner, type Runner, type RunnerDeps, type RunOutcome } from "../src/core/runner";
@@ -222,6 +222,39 @@ describe("DocsMirrorPlugin: Start", () => {
     flushTimers();
     await settle();
     expect(runner!.calls).toEqual([]);
+  });
+
+  it("I2: wird das Plugin während der offenen Bestätigung entladen, startet der Klick keinen Lauf (Kontrolle: ohne Entladen läuft er)", async () => {
+    for (const unload of [false, true]) {
+      const { plugin, runner } = setup({ root: ROOT });
+      await plugin.onload();
+      runner!.pendingPlan = plan([item("a", "conflict", { src })]);
+      const ex = plugin.executePlan(new Set());
+      await settle();
+      if (unload) plugin.onunload();
+      (Modal.__last as any).contentEl.querySelectorAll("button")[1].__component.clickCB();
+      await ex;
+      expect(runner!.calls.map((c) => c.kind), `unload=${unload}`).toEqual(unload ? [] : ["execute"]);
+    }
+  });
+
+  it("I2: perform nach onunload startet nichts", async () => {
+    const { plugin, runner } = setup({ root: ROOT });
+    await plugin.onload();
+    plugin.onunload();
+    await plugin.sync();
+    expect(runner!.calls).toEqual([]);
+  });
+
+  it("I1: der Host gibt dem Runner den Basispfad des Desktop-Adapters, sonst null; vault-is-root meldet eine Notice", async () => {
+    const { app, plugin, runner, deps } = setup({ root: ROOT });
+    await plugin.onload();
+    expect(deps().vaultBasePath?.()).toBeNull();
+    (app.vault as any).adapter = new FileSystemAdapter("/data/repos/mirror");
+    expect(deps().vaultBasePath?.()).toBe("/data/repos/mirror");
+    runner!.next = () => Promise.resolve({ kind: "blocked", reason: "vault-is-root" });
+    await plugin.sync();
+    expect(notices()).toEqual(["Sync blocked: the source folder is this vault itself. Nothing was written."]);
   });
 
   it("der Startlauf überspringt, wenn schon ein Plan wartet, eine Bestätigung offen ist oder ein Lauf läuft", async () => {

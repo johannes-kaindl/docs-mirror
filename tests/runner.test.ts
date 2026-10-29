@@ -44,6 +44,8 @@ interface Ctx {
   reads: string[];
   scans: { n: number; onScan?: () => void };
   onRead?: (path: string) => void;
+  /** Basispfad des Vaults, wie ihn der Plugin-Host liefert (`null` = unbekannt). */
+  vaultBase: string | null;
 }
 function ctx(over: { settings?: Partial<DocsMirrorSettings>; root?: string } = {}): Ctx {
   const c = {} as Ctx;
@@ -52,6 +54,7 @@ function ctx(over: { settings?: Partial<DocsMirrorSettings>; root?: string } = {
   c.tree = { ...TREE };
   c.settings = { ...DEFAULT_SETTINGS, ...over.settings };
   c.reads = [];
+  c.vaultBase = null;
   c.scans = { n: 0 };
   let current: SourcePort = fakeSource(c.tree);
   c.setSource = (t, opts) => { c.tree = t; current = fakeSource(t, opts); };
@@ -68,6 +71,7 @@ function ctx(over: { settings?: Partial<DocsMirrorSettings>; root?: string } = {
     settings: () => c.settings,
     yieldToUi: () => Promise.resolve(),
     now: () => 5000,
+    vaultBasePath: () => c.vaultBase,
   };
   c.runner = createRunner(deps);
   return c;
@@ -345,5 +349,44 @@ describe("createRunner", () => {
     const info = (d as Extract<RunOutcome, { kind: "done" }>).info;
     expect(info).toMatchObject({ ok: false, error: "notice.partial" });
     expect(info.counts.errors).toBe(3);
+  });
+  it("I1: Wurzel gleich Vault → blocked/vault-is-root, nichts gelesen, nichts geschrieben, nichts gespeichert", async () => {
+    const c = ctx();
+    c.vaultBase = `${ROOT}/`;
+    const r = await c.runner.run("manual", sig());
+    expect(r).toEqual({ kind: "blocked", reason: "vault-is-root" });
+    expect(c.scans.n).toBe(0);
+    expect(ops(c)).toEqual([]);
+    expect(c.state.saves).toEqual([]);
+    expect(await c.runner.execute("all", sig())).toEqual({ kind: "blocked", reason: "vault-is-root" });
+  });
+
+  it("I1: Vault unterhalb der Wurzel → die Spiegelkopien werden nie als Quelle gelesen (zweiter Lauf: 0 neu)", async () => {
+    const c = ctx();
+    c.vaultBase = `${ROOT}/mirror`;
+    await mirrored(c);
+    // Der Vault liegt unter der Wurzel: seine Dateien erscheinen im Quellbaum.
+    c.setSource({ ...TREE, ...Object.fromEntries(Object.keys(TREE).map((k) => [`mirror/${k}`, "kopie"])) });
+    const r = await c.runner.run("manual", sig());
+    expect(r).toMatchObject({ kind: "done", info: { ok: true, counts: { created: 0, updated: 0, deleted: 0, unchanged: 3 } } });
+    expect(c.reads.some((p) => p.startsWith("mirror/"))).toBe(false);
+    // Segmentgrenze: ein Geschwister `mirror2` bleibt Quelle.
+    c.setSource({ ...TREE, "mirror2/docs/z.md": "zett" });
+    const w = await c.runner.run("manual", sig());
+    expect(w.kind === "done" ? w.info.counts.created : -1).toBe(1);
+  });
+
+  it("M1: erscheint nach dem Warten ein neuer Bestätigungsgrund bei gleichem Plan, wartet der Lauf erneut", async () => {
+    const c = ctx();
+    const w = await c.runner.run("manual", sig());
+    expect(w).toMatchObject({ kind: "waiting", reasons: ["first-run"] });
+    c.settings = { ...c.settings, maxTotalBytes: 1 };
+    const again = await c.runner.execute(new Set(), sig());
+    expect(again).toMatchObject({ kind: "waiting" });
+    expect((again as Extract<RunOutcome, { kind: "waiting" }>).reasons).toContain("total-size");
+    expect(ops(c)).toEqual([]);
+    expect(c.runner.pending()).not.toBeNull();
+    // Mit dem Grund bestätigt (derselbe Plan, derselbe Grund) läuft er.
+    expect((await c.runner.execute(new Set(), sig())).kind).toBe("done");
   });
 });

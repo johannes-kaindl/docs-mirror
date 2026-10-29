@@ -122,8 +122,9 @@ export function fakeVault(opts: FakeVaultOptions = {}): FakeVault {
       const t = temps.get(tempName);
       if (!t) return Promise.reject(new Error(`ENOENT: ${tempName}`));
       if (folders.has(key(path))) return Promise.reject(new Error(`EISDIR: ${path}`));
-      const existing = files.get(key(path));
-      files.set(key(path), { name: existing?.name ?? path, data: t.data, mtime: t.mtime });
+      // Wie der echte Adapter (docs/ADAPTER-MESSUNG.md): `rename` wirft bei vorhandenem Ziel.
+      if (files.has(key(path))) return Promise.reject(new Error(`Destination file already exists: ${path}`));
+      files.set(key(path), { name: path, data: t.data, mtime: t.mtime });
       writes.push({ path, data: t.data });
       temps.delete(tempName);
       return Promise.resolve();

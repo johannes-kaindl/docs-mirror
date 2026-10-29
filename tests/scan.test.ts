@@ -110,6 +110,30 @@ describe("scanSource", () => {
     expect(r.files.map((f) => f.path)).toEqual(["r/docs/bar.md"]);
   });
 
+  it("B2: s/ſ, σ/ς und ß/ẞ falten auf dasselbe Ziel (case-sensitiver Quellbaum) → je eine Kollisionsgruppe", async () => {
+    for (const [a, b] of [["s", "ſ"], ["οδοσ", "οδος"], ["ß", "ẞ"]]) {
+      const r = await scanSource(fakeSource({ [`docs/${a}.md`]: "1", [`docs/${b}.md`]: "2" }), settings());
+      expect(r.collisions, `${a}/${b}`).toHaveLength(1);
+      expect(r.collisions[0]).toHaveLength(2);
+      expect(r.files, `${a}/${b}`).toEqual([]);
+    }
+  });
+
+  it("I1: skipPaths schließt den Teilbaum aus (Segmentgrenze: vault2 bleibt Quelle), Vergleich NFC und gefaltet", async () => {
+    const t = {
+      "p/vault/docs/kopie.md": "k", "p/vault2/docs/echt.md": "e", "p/docs/a.md": "a", "q/Ü/docs/u.md": "u",
+    };
+    const r = await scanSource(fakeSource(t), settings(), undefined, { skipPaths: ["p/vault", `q/${"Ü".normalize("NFD")}`.toUpperCase()] });
+    expect(r.files.map((f) => f.path).sort()).toEqual(["p/docs/a.md", "p/vault2/docs/echt.md"]);
+    // Ohne die Liste sind alle da (Gegenprobe zur Ausschlusswirkung).
+    expect((await scanSource(fakeSource(t), settings())).files).toHaveLength(4);
+  });
+
+  it("I1: skipPaths mit dem Wurzel-Pfad \"\" ist kein Ausschluss (leerer Eintrag zählt nicht)", async () => {
+    const r = await scanSource(fakeSource({ "docs/a.md": "a" }), settings(), undefined, { skipPaths: [""] });
+    expect(r.files).toHaveLength(1);
+  });
+
   it("Ordner-Kollision mit Docs darunter beidseitig → Konflikt auf Dateiebene", async () => {
     const t = { "r/Foo/docs/x.md": "1", "r/foo/docs/x.md": "2", "r/ok/docs/y.md": "3" };
     const r = await scanSource(fakeSource(t), settings());

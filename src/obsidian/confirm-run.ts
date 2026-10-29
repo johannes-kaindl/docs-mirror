@@ -23,7 +23,8 @@ export function confirmRun(app: App, reasons: ConfirmReason[], plan: Plan, overw
     message,
     confirmLabel: t("view.runPlan"),
     cancelLabel: t("view.cancel"),
-    // Löschen und Überschreiben sind die Wirkungen, die man nicht zurückholt: dann der destruktive Knopf.
-    warning: plan.counts.delete > 0 || overwriteCount > 0,
+    // Löschen und Überschreiben sind die Wirkungen, die man nicht zurückholt: dann der destruktive Knopf. Eine im Vault
+    // veränderte Datei ersetzt der Lauf mit der Quellversion, auch das holt man nicht zurück.
+    warning: plan.counts.delete > 0 || plan.counts["vault-modified"] > 0 || overwriteCount > 0,
   });
 }
