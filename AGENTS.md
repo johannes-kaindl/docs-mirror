@@ -40,10 +40,18 @@ scripts/gui-smoke.ts        CDP-Treiber gegen eine Zweitinstanz (Rezept im Datei
 scripts/probe-adapter.ts    Adapter-Messung (docs/ADAPTER-MESSUNG.md)
 ```
 
+## Architecture principles
+
+- **Reiner Kern ohne `obsidian`-Import (PROF-OBS-03/04).** `src/core/` ist in Node ohne DOM testbar; nur `main.ts` und `src/obsidian/` importieren `obsidian`; `npm run check:pure` prüft das.
+- **Kit-first.** Vor einer neuen Funktion `../REGISTRY.md` und `naehte_suche.py` lesen; Bausteine aus `src/vendor/` sind Snapshots und werden nie von Hand geändert; neue exportierte reine Funktionen sind gate-pflichtig.
+- **Schreiben über die Vault-API, Lesen der Quelle über `fs`.** Der Vault wird nur über `app.vault.adapter` (VaultPort) geändert; die Quelle wird nur gelesen (Desktop-Gate, lazy `require`).
+- **Gerätelokaler Zustand.** Wurzel, Manifest, Fingerabdruck und letzter Lauf liegen in `app.loadLocalStorage` und gelangen nie auf ein anderes Gerät.
+
 ## Commands
 
-- `npm run gate` lintet, prüft Typen (Quelle, Tests, Skripte), testet, prüft die Reinheit des Kerns und baut; Pflicht vor jedem Commit.
-- `npm run lint` (Zero Warnings), `npm run typecheck`, `npm run typecheck:test`, `npm test`, `npm run check:pure`, `npm run build` einzeln.
+- `npm run gate` lintet, prüft Typen, testet, prüft die Reinheit des Kerns und baut; Pflicht vor jedem Commit.
+- `npm run lint` (Zero Warnings), `npm test`, `npm run check:pure`, `npm run build` einzeln.
+- `npm run typecheck` prüft `src/`; `npm run typecheck:test` prüft `tests/` (`tsconfig.test.json`); `npm run typecheck:scripts` prüft `scripts/` und überspringt sich mit Hinweis, wenn `../tools/obsidian-cdp` (Dach-Checkout) fehlt.
 - `npm run deploy` baut und kopiert `main.js`, `manifest.json`, `styles.css` nach `$OBSIDIAN_PLUGIN_DIR`.
 - `npm run smoke:gui -- --setup` baut Quelle und Vault im Staging (`$STAGING_VAULTS_DIR`); `npm run smoke:gui -- --port <port>` fährt den Smoke gegen die Zweitinstanz.
 - `npm run probe:adapter -- --port <port>` misst die Adapter-Semantik neu.

@@ -10,7 +10,7 @@ All notable changes to this project are documented here. The format follows [Kee
 - Plan preview in the sidebar, grouped by class; the first run and runs with a reason wait for confirmation.
 - Per-device record of mirrored files: only files recorded there are deleted or overwritten.
 - Conflicts with files the plugin did not create are never overwritten unless ticked.
-- Safeguards: no deletion when the source root is missing or yields no files; confirmation for the first run, for many deletions, for changed settings and for the total size limit.
+- Safeguards: no deletion when the source root is missing or yields no files; confirmation for the first run, for many deletions, for changed settings, for the total size limit and for conflicts.
 - Start run when the vault loads (off by default); it waits in the sidebar and opens no dialog.
 - Writes through temporary files, verified against the source bytes before replacing the target.
 - Settings for the source root, folder patterns, excluded names, file types, largest file, total size limit, confirmation threshold, dot folders and the start run.

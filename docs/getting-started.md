@@ -24,9 +24,11 @@ The root is stored on this device only. Set it again on every computer you mirro
 
 Open the sidebar with the ribbon icon or the command **Open Docs Mirror** (Docs Mirror öffnen), then click **Sync now** (Jetzt synchronisieren).
 
-The first run never writes directly. The sidebar shows the **Sync plan** (Sync-Plan) with the new files and the size the vault would have afterwards. Check it, tick any conflict you want to overwrite, and click **Run plan** (Plan ausführen) to confirm. **Cancel** (Abbrechen) writes nothing.
+The first run never writes directly. The sidebar shows the **Sync plan** (Sync-Plan) with the new files and the size the vault would have afterwards. Check it and tick any conflict you want to overwrite.
 
-Later runs without other reasons go through without a question. They still ask when a run deletes many files, when you changed the settings since the last run, or when the mirror would exceed the total size limit.
+Clicking **Run plan** (Plan ausführen) in the sidebar opens a second dialog titled **Run the plan?** (Plan ausführen?), with the buttons **Run plan** and **Cancel** (Abbrechen). Only the button in this dialog writes; **Cancel** in the dialog writes nothing.
+
+Later runs go through without a question unless one of these reasons applies: a run deletes many files, the settings changed since the last run, the mirror would exceed the total size limit, or there are conflicts with files the plugin did not create. Conflicts are overwritten only when you tick them.
 
 ## 5. Read on the phone through Obsidian Sync
 
