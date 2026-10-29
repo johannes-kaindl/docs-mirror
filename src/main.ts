@@ -9,6 +9,7 @@ import { confirmRun } from "./obsidian/confirm-run";
 import { createDeviceState } from "./obsidian/device-state";
 import { DocsMirrorSettingTab, type SettingsHost } from "./obsidian/settings-tab";
 import { createSourcePort } from "./obsidian/source-fs";
+import { resolveRealPathsNode } from "./obsidian/real-paths";
 import { createVaultPort } from "./obsidian/vault-io";
 import { activateView, DocsMirrorView, VIEW_TYPE_DOCS_MIRROR, type DocsMirrorHost } from "./obsidian/view";
 import { formatBytes } from "./vendor/kit/format-bytes";
@@ -77,6 +78,8 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
         const adapter = this.app.vault.adapter;
         return adapter instanceof FileSystemAdapter ? adapter.getBasePath() : null;
       },
+      // Symlinks und andere Schreibweisen löst nur das Dateisystem auf; der Kern vergleicht danach Text.
+      resolvePaths: resolveRealPathsNode,
     });
 
     this.registerView(VIEW_TYPE_DOCS_MIRROR, (leaf) => new DocsMirrorView(leaf, this));

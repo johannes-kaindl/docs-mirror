@@ -46,6 +46,8 @@ interface Ctx {
   onRead?: (path: string) => void;
   /** Basispfad des Vaults, wie ihn der Plugin-Host liefert (`null` = unbekannt). */
   vaultBase: string | null;
+  /** Ersatz für die Auflösung über das Dateisystem (Symlinks); fehlt er, bleiben die Pfade Text. */
+  resolve?: (root: string, vaultBase: string | null) => { root: string; vaultBase: string | null };
 }
 function ctx(over: { settings?: Partial<DocsMirrorSettings>; root?: string } = {}): Ctx {
   const c = {} as Ctx;
@@ -72,6 +74,7 @@ function ctx(over: { settings?: Partial<DocsMirrorSettings>; root?: string } = {
     yieldToUi: () => Promise.resolve(),
     now: () => 5000,
     vaultBasePath: () => c.vaultBase,
+    resolvePaths: (root, vaultBase) => (c.resolve ? c.resolve(root, vaultBase) : { root, vaultBase }),
   };
   c.runner = createRunner(deps);
   return c;
@@ -374,6 +377,48 @@ describe("createRunner", () => {
     c.setSource({ ...TREE, "mirror2/docs/z.md": "zett" });
     const w = await c.runner.run("manual", sig());
     expect(w.kind === "done" ? w.info.counts.created : -1).toBe(1);
+  });
+
+  it("Symlink: der Host löst den Vault-Basispfad auf, der Runner schließt den Vault als Quelle aus (Kontrolle ohne Auflösung: er liest die Kopien)", async () => {
+    for (const resolved of [true, false]) {
+      const c = ctx();
+      c.vaultBase = "/links/vault-link";
+      if (resolved) c.resolve = (root) => ({ root, vaultBase: `${root}/mirror` });
+      await mirrored(c);
+      c.setSource({ ...TREE, ...Object.fromEntries(Object.keys(TREE).map((k) => [`mirror/${k}`, "kopie"])) });
+      c.reads.length = 0;
+      await c.runner.run("manual", sig());
+      expect(c.reads.some((p) => p.startsWith("mirror/")), `resolved=${resolved}`).toBe(!resolved);
+    }
+  });
+
+  it("Symlink: Wurzel und Vault lösen auf dasselbe Verzeichnis auf → blocked/vault-is-root", async () => {
+    const c = ctx();
+    c.vaultBase = "/links/other-name";
+    c.resolve = () => ({ root: "/real", vaultBase: "/real" });
+    expect(await c.runner.run("manual", sig())).toEqual({ kind: "blocked", reason: "vault-is-root" });
+    expect(c.scans.n).toBe(0);
+  });
+
+  it("neu ausgeschlossener Vault-Teilbaum: Manifest-Kopien darunter werden zu delete und laufen durch die Schwelle, vault-only bleibt unangetastet", async () => {
+    const c = ctx({ settings: { deleteThresholdFiles: 1, deleteThresholdPercent: 0 } });
+    c.setSource({ ...TREE, "mirror/docs/k.md": "kopie" });
+    await mirrored(c);
+    expect(c.vault.has("mirror/docs/k.md")).toBe(true);
+    c.vault.put("mirror/eigen.md", "nur im vault");
+    // Ab jetzt liegt der Vault unter `mirror`: der Teilbaum gehört nicht mehr zur Quelle.
+    c.vaultBase = `${ROOT}/mirror`;
+    const w = await c.runner.run("manual", sig());
+    expect(w.kind).toBe("waiting");
+    if (w.kind !== "waiting") return;
+    expect(w.plan.items.filter((i) => i.cls === "delete").map((i) => i.path)).toEqual(["mirror/docs/k.md"]);
+    expect(w.plan.items.some((i) => i.path === "mirror/eigen.md" && i.cls === "delete")).toBe(false);
+    expect(w.reasons.length).toBeGreaterThan(0);
+    expect(c.vault.has("mirror/docs/k.md")).toBe(true);
+    const d = await c.runner.execute(new Set(), sig());
+    expect(d).toMatchObject({ kind: "done", info: { counts: { deleted: 1 } } });
+    expect(c.vault.has("mirror/docs/k.md")).toBe(false);
+    expect(c.vault.text("mirror/eigen.md")).toBe("nur im vault");
   });
 
   it("M1: erscheint nach dem Warten ein neuer Bestätigungsgrund bei gleichem Plan, wartet der Lauf erneut", async () => {

@@ -84,6 +84,7 @@ scripts/probe-adapter.ts    Adapter-Messung (docs/ADAPTER-MESSUNG.md)
 - **Kollisionen auf APFS:** Namen, die sich nur in Groß- und Kleinschreibung oder in NFC/NFD unterscheiden, zählen als Konflikt `case-collision` und werden nie überschrieben (Messung 2026-10-28: `gross.md` trifft `Gross.md`, NFD trifft NFC).
 - **Symlinks und Dateien über `maxFileBytes` oder mit fremder Endung fallen aus dem Scan.** War so eine Datei schon gespiegelt, plant der Lauf ihre Löschung im Vault. Das ist gewollt (Spec § 3), gehört aber in die Nutzer-Doku.
 - **Dach-Suche:** `grep` ist auf diesem Rechner ugrep und respektiert `.gitignore`; für Suchen über Repos `/usr/bin/grep` (Belege 2026-09-16, 2026-10-03).
+- **Vault unter der Wurzel (2026-10-29):** Einträge im Manifest unter einem neu ausgeschlossenen Vault-Teilbaum werden zu `delete` (Aufräumen eigener Kopien, mit Schwelle und Bestätigung; `vault-only` bleibt unangetastet). Die Vault-Erkennung löst Wurzel und Basispfad im Host über `realpath` auf (`src/obsidian/real-paths.ts`), damit Symlinks und `/tmp` gegen `/private/tmp` sie nicht umgehen.
 
 ## Abweichungen von der Leitkonvention
 

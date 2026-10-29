@@ -27,6 +27,8 @@ export interface RunnerDeps {
   /** Basispfad des Vaults im Dateisystem (der Host bestimmt ihn je Lauf); `null`/fehlend = unbekannt. Liegt der Vault
    *  unter der Wurzel, schließt der Scan ihn aus; ist er die Wurzel, blockiert der Lauf. */
   vaultBasePath?: () => string | null;
+  /** Löst Wurzel und Vault-Basispfad vor dem Vergleich auf (Symlinks); der Host liefert sie über das Dateisystem. Fehlt sie, gelten die Pfade als Text. */
+  resolvePaths?: (root: string, vaultBase: string | null) => { root: string; vaultBase: string | null };
 }
 
 export type RunOutcome =
@@ -153,7 +155,9 @@ export function createRunner(deps: RunnerDeps): Runner {
     const load = await deps.state.load();
     const rootCheck = validateRoot(load.root);
     if (!rootCheck.ok) return { kind: "blocked", reason: "not-configured" };
-    const where = locateVault(rootCheck.root, deps.vaultBasePath?.() ?? null);
+    const rawBase = deps.vaultBasePath?.() ?? null;
+    const resolved = deps.resolvePaths?.(rootCheck.root, rawBase) ?? { root: rootCheck.root, vaultBase: rawBase };
+    const where = locateVault(resolved.root, resolved.vaultBase);
     if (where.kind === "same") return { kind: "blocked", reason: "vault-is-root" };
     const prep = await prepare(load, rootCheck.root, where.kind === "below" ? [where.rel] : [], signal);
     if (prep.kind === "blocked") return { kind: "blocked", reason: prep.reason };

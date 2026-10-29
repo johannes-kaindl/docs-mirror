@@ -101,7 +101,7 @@ export async function scanSource(
       const name = nfc(entry.name);
       const path = join(dir, name);
       const rawPath = join(rawDir, entry.name);
-      const skip = excluded.has(name) || skipKeys.has(foldKey(path)) || (entry.kind === "dir" && name.startsWith(".") && !s.includeDotFolders);
+      const skip = excluded.has(name) || (skipKeys.size > 0 && skipKeys.has(foldKey(path))) || (entry.kind === "dir" && name.startsWith(".") && !s.includeDotFolders);
       const isMatch = !inMatch && entry.kind !== "file" && matchIgnore(rules, path) !== null;
       // Ausgeschlossene Einträge bleiben in der Schleife, damit `tick` auch für sie läuft.
       if (skip) {

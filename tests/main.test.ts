@@ -252,6 +252,7 @@ describe("DocsMirrorPlugin: Start", () => {
     expect(deps().vaultBasePath?.()).toBeNull();
     (app.vault as any).adapter = new FileSystemAdapter("/data/repos/mirror");
     expect(deps().vaultBasePath?.()).toBe("/data/repos/mirror");
+    expect(typeof deps().resolvePaths).toBe("function");
     runner!.next = () => Promise.resolve({ kind: "blocked", reason: "vault-is-root" });
     await plugin.sync();
     expect(notices()).toEqual(["Sync blocked: the source folder is this vault itself. Nothing was written."]);

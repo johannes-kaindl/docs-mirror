@@ -22,6 +22,14 @@ describe("createVaultPort", () => {
     expect(adapter.calls.filter((c) => c.startsWith("list:.obsidian"))).toEqual([]);
   });
 
+  it("configDir wird gefaltet verglichen: `.OBSIDIAN/x` wird abgelehnt, list zeigt auch `.Obsidian/...` nicht", async () => {
+    const { port } = setup({ files: { "a.md": "a", ".Obsidian/app.json": "{}" } });
+    await port.writeTemp(".dmr-tmp-0", enc("x"), 1);
+    await expect(port.replace(".dmr-tmp-0", ".OBSIDIAN/x")).rejects.toThrow(/inside/);
+    await expect(port.mkdirp(".OBSIDIAN/sub")).rejects.toThrow();
+    expect(await port.list()).toEqual(["a.md"]);
+  });
+
   it("writeTemp legt das Temp-Verzeichnis an, übergibt mtime und Bytes; read/stat lösen den Temp-Namen auf", async () => {
     const { adapter, port } = setup({ folders: [".obsidian/plugins/docs-mirror"] });
     await port.writeTemp(".dmr-tmp-0", enc("hallo"), 1700000000123);
