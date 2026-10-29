@@ -7,7 +7,7 @@
  *
  * Quelle: `fixtures/source` (drei Mini-Repos) wird im Setup nach `<staging>/docs-mirror-source/main` kopiert und um das ergänzt,
  * was nicht getrackt wird: `node_modules` (Git ignoriert den Namen), ein Symlink, eine Datei über 5 MB, feste Änderungszeiten.
- * Daneben liegen `solo` (ein Repo), `empty` (leerer Ordner), `big` (1500 Dateien, für Startlauf, Abbruch und Wurzelwechsel im Lauf).
+ * Daneben liegen `solo` (ein Repo), `empty` (leerer Ordner), `big` (4000 Dateien, für Startlauf, Abbruch und Wurzelwechsel im Lauf).
  * Vault: `fixtures/vault` (eine Fremddatei) nach `<staging>/docs-mirror`, gebaut mit `buildVault`.
  *
  * Wurzel und Einstellungen setzt der Treiber wie ein Nutzer: Feld im Einstellungs-Tab füllen und verlassen (blur), Schalter anklicken.
@@ -60,7 +60,7 @@ const SOLO = join(SRC_BASE, "solo");
 const EMPTY = join(SRC_BASE, "empty");
 const BIG = join(SRC_BASE, "big");
 const MISSING = join(SRC_BASE, "missing");
-const BIG_COUNT = 1500;
+const BIG_COUNT = 4000;
 
 /** Was aus `main` gespiegelt wird (Pfad im Vault = Pfad unter der Wurzel). */
 const MIRROR = [
@@ -298,6 +298,11 @@ async function manifestSchluessel(cdp: Cdp): Promise<string[]> {
   try { return Object.keys(JSON.parse(raw) as Record<string, unknown>).sort(); } catch { return []; }
 }
 
+/** Ein Punkt, der nur MITTEN im Lauf gilt: war der Lauf schon zu Ende, ist der Gegenstand nicht erreicht (nichts gemessen), nicht rot. */
+const recL = (noch: boolean, kurz: string, ok: boolean, detail: string): void => {
+  if (noch) rec(kurz, ok, detail);
+  else unm(kurz, `Gegenstand nicht erreicht: der Lauf war bei der Probe schon zu Ende (${detail.slice(0, 160)})`);
+};
 const text = (pfad: string): string => readFileSync(pfad, "utf8");
 
 /* ── Einstellungs-Tab ─────────────────────────────────────────────────────────────────────────────────────────────── */
@@ -712,7 +717,7 @@ async function main(): Promise<void> {
     await cdp.evaluate(`${P}.notify(); return true;`);
     await sleep(300);
     const fokusNach = await cdp.evaluate<{ cls: string | null; label: string | null; tag: string | null }>(`const a = document.activeElement; return { cls: a ? a.className : null, label: a ? a.getAttribute("aria-label") : null, tag: a ? a.tagName : null };`);
-    rec("O4c", fokusVor.cls === "dmr-overwrite" && fokusNach.cls === "dmr-overwrite" && fokusNach.label === fokusVor.label,
+    rec("O4c", (fokusVor.cls ?? "").split(" ").includes("dmr-overwrite") && (fokusNach.cls ?? "").split(" ").includes("dmr-overwrite") && fokusNach.tag === "INPUT" && fokusNach.label === fokusVor.label,
       `Fokus vor dem Neuaufbau: ${q(fokusVor.label)} (${q(fokusVor.cls)}) · danach: ${q(fokusNach.label)} (<${fokusNach.tag}> ${q(fokusNach.cls)})`);
 
     // O4b: nur clash1 ankreuzen (echter Klick auf das Kästchen), ausführen.
@@ -1120,10 +1125,11 @@ async function main(): Promise<void> {
       const dreh1 = await cdp.evaluate<string | null>(`const svg = document.querySelector(".dmr-status-icon svg"); return svg ? getComputedStyle(svg).transform : null;`);
       await sleep(230);
       const dreh2 = await cdp.evaluate<string | null>(`const svg = document.querySelector(".dmr-status-icon svg"); return svg ? getComputedStyle(svg).transform : null;`);
+      const nochA = await cdp.evaluate<boolean>(`return ${P}.running;`);
       const t1 = lauf1m.zeit ?? -1; const t2 = lauf2m.zeit ?? -1;
-      rec("K2", l1 && lauf1m.animationName === "dmr-spin" && lauf1m.anim >= 1 && lauf1m.spielt === "running" && /is-checking/.test(lauf1m.kl ?? "") && lauf1m.aria === `Status: ${lauf1m.text?.split(" · ")[0]}` && lauf1m.primaer === "Cancel" && lauf1m.sek === true && dreh1 !== null && dreh1 !== dreh2,
+      recL(nochA, "K2", l1 && lauf1m.animationName === "dmr-spin" && lauf1m.anim >= 1 && lauf1m.spielt === "running" && /is-checking/.test(lauf1m.kl ?? "") && lauf1m.aria === `Status: ${lauf1m.text?.split(" · ")[0]}` && lauf1m.primaer === "Cancel" && lauf1m.sek === true && dreh1 !== null && dreh1 !== dreh2,
         `Status ${q(lauf1m.text)} (Klasse ${q(lauf1m.kl)}, aria ${q(lauf1m.aria)}) · animationName=${q(lauf1m.animationName)} · Animationen dmr-spin ${lauf1m.anim}, Zustand ${q(lauf1m.spielt)} · Drehung im Abstand von 230 ms ${q(dreh1)} → ${q(dreh2)} · Primärknopf ${q(lauf1m.primaer)}, Sekundärknopf versteckt=${lauf1m.sek}`);
-      rec("O3a", lauf2m.gleich && t2 > t1 && t1 >= 0 && lauf2m.spielt === "running" && Math.abs((t2 - t1) - lauf2m.verstrichen) < 250,
+      recL(nochA, "O3a", lauf2m.gleich && t2 > t1 && t1 >= 0 && lauf2m.spielt === "running" && Math.abs((t2 - t1) - lauf2m.verstrichen) < 250,
         `nach ${Math.round(lauf2m.verstrichen)} ms und etlichen Fortschritts-Neuaufbauten: gleiches svg-Element=${lauf2m.gleich} · Animations-Uhr ${Math.round(t1)}→${Math.round(t2)} ms (Zuwachs ${Math.round(t2 - t1)} ms, erwartet ~${Math.round(lauf2m.verstrichen)}) · Status danach ${q(lauf2m.text)} · „läuft bereits“ bei weiterem Befehl: ${q(nWaehrend)}`);
       // O3b: prefers-reduced-motion
       await cdp.send("Emulation.setEmulatedMedia", { features: [{ name: "prefers-reduced-motion", value: "reduce" }] });
@@ -1131,10 +1137,11 @@ async function main(): Promise<void> {
       const reduziert = await cdp.evaluate<{ animationName: string | null; anim: number; media: boolean }>(`
         const svg = document.querySelector(".dmr-status-icon svg"); return { animationName: svg ? getComputedStyle(svg).animationName : null, anim: document.getAnimations().filter((x) => x.animationName === "dmr-spin").length, media: window.matchMedia("(prefers-reduced-motion: reduce)").matches };
       `);
+      const nochB = await cdp.evaluate<boolean>(`return ${P}.running;`);
       await cdp.send("Emulation.setEmulatedMedia", { features: [] });
       await sleep(300);
       const normal = await cdp.evaluate<{ animationName: string | null; media: boolean }>(`const svg = document.querySelector(".dmr-status-icon svg"); return { animationName: svg ? getComputedStyle(svg).animationName : null, media: window.matchMedia("(prefers-reduced-motion: reduce)").matches };`);
-      rec("O3b", reduziert.media && reduziert.animationName === "none" && reduziert.anim === 0 && !normal.media && normal.animationName === "dmr-spin",
+      recL(nochB, "O3b", reduziert.media && reduziert.animationName === "none" && reduziert.anim === 0 && !normal.media && normal.animationName === "dmr-spin",
         `reduce: media=${reduziert.media}, animationName=${q(reduziert.animationName)}, laufende Animationen ${reduziert.anim} · zurück: media=${normal.media}, animationName=${q(normal.animationName)}`);
 
       // O7: Wurzel MITTEN im Lauf wechseln; der Lauf muss den alten Baum zu Ende lesen.
@@ -1145,7 +1152,7 @@ async function main(): Promise<void> {
       const nach7 = await vaultDateien(cdp);
       const ans7 = await lese(cdp);
       const grossN = zaehleGross(nach7);
-      rec("O7", mitten.running && mitten.root === SOLO && fertig7 && grossN === BIG_COUNT && !nach7.includes("solo/docs/only.md") && ans7.counters["Errors"] === 0,
+      recL(mitten.running, "O7", mitten.running && mitten.root === SOLO && fertig7 && grossN === BIG_COUNT && !nach7.includes("solo/docs/only.md") && ans7.counters["Errors"] === 0,
         `Wurzel mitten im Lauf gewechselt (Lauf läuft=${mitten.running}, Wurzel ${mitten.root === SOLO ? "= solo" : q(mitten.root)}) · danach ${grossN} von ${BIG_COUNT} Dateien aus dem alten Baum (vorher ${vorLauf}), Datei der neuen Wurzel im Vault=${nach7.includes("solo/docs/only.md")} · Zähler ${q(ans7.counters)}`);
 
       /* O8 */
