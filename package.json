@@ -34,7 +34,7 @@
     "esbuild": "^0.23",
     "eslint": "^9",
     "eslint-plugin-obsidianmd": "^0.4.1",
-    "obsidian": "latest",
+    "obsidian": "1.13.1",
     "typescript": "^5.5",
     "typescript-eslint": "^8",
     "vitest": "^2"
