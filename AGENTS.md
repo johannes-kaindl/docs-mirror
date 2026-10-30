@@ -90,4 +90,4 @@ scripts/probe-adapter.ts    Adapter-Messung (docs/ADAPTER-MESSUNG.md)
 
 Keine gegen die Leitkonvention. Abweichungen von der Spec, vom Master übernommen (Task-Note „Plan weicht in drei Punkten von der Spec ab“, 2026-10-28): Vorschau ohne `buildReviewList`, Klasse `vault-missing`, eigene Schreibfolge statt atomarem Ersetzen.
 
-Offen (Stand 2026-10-29): `devDependencies.obsidian` steht auf `latest`, die Lock-Datei auf 1.13.1; Pinnen ist noch nicht entschieden. Die Hilfe-Zeile in den Einstellungen verlinkt auf GitHub (`docs/README.md` und Issues); dieses Ziel existiert vor dem ersten Release nicht.
+Offen (Stand 2026-10-30): `devDependencies.obsidian` ist auf 1.13.1 gepinnt (Commit `1f1019d`). Die Hilfe-Zeile in den Einstellungen verlinkt auf GitHub (`docs/README.md` und Issues); dieses Ziel existiert vor dem ersten Release nicht.
