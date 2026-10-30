@@ -39,7 +39,7 @@
  * Typen: `tsconfig.scripts.json` (im `gate` über `npm run typecheck:scripts`).
  */
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { cwd } from "node:process";
 
 import { createBilanz, parseArgs, runDriver } from "../../tools/obsidian-cdp/bilanz.js";
@@ -127,6 +127,12 @@ const PUNKTE = [
   "O7 Wurzelwechsel MITTEN im Lauf: der Lauf liest den alten Baum weiter",
   "P Quelldatei WÄHREND des Laufs gelöscht, eine geändert: Fehler gezählt, kein Manifest-Eintrag, der Lauf geht weiter",
   "O8 Wurzelwechsel in der Wartephase: nächster Lauf wartet mit Fingerabdruck-Grund, nichts gelöscht",
+  "Q1 Wurzel als Symlink auf einen Elternordner des Vaults: die Vault-Kopien werden nicht als Quelle gelesen (realpath), zweiter Lauf 0 neu",
+  "Q2 Wurzel gleich Vault: Lauf blockiert mit dem Grund-Text (vault-is-root), nichts geschrieben, Manifest unverändert",
+  "Q3 Entladen bei offener Bestätigung: der Klick auf den Dialogknopf startet keinen Lauf, Vault unverändert, kein Temp",
+  "Q4 Fremde Datei erscheint nach dem Planen am Ziel einer neuen Datei (B1): Fehler gezählt, fremde Datei unverändert, kein Manifest-Eintrag",
+  "Q5 Bestätigungsdialog bei nur im Vault veränderter Datei: Ausführen-Knopf im Warn-Stil",
+  "Q6 Einstellungen: Beschreibung der Schwelle nennt „at least“ (EN)",
 ] as const;
 
 const bilanz = createBilanz({ punkte: PUNKTE });
@@ -538,6 +544,14 @@ async function main(): Promise<void> {
       rec("O9b", aufruf.ok && gleich && nativ.length >= 10 && erste === "Help" && notizNativ.n >= 1 && notizFallback.n >= 1,
         `Pfad: Obsidian rief display() ${aktiv.displayCalls}× selbst (${aktiv.displayCalls === 0 ? "deklarativ" : "display()"}) · nativ ${nativ.length} Zeilen, erste ${q(erste)} · Fallback ${fallback.length} Zeilen, gleich=${gleich}${gleich ? "" : ` (nativ=${q(nativ)} fallback=${q(fallback)})`} · Hinweise nativ ${notizNativ.n}, Fallback ${notizFallback.n}${aufruf.fehler ? ` · Fehler ${aufruf.fehler}` : ""}`);
       await bild(ctx9.s, "02-einstellungen");
+      // Q6: der Schwellentext im Tab (die Zeile über ihren Namen gefunden, nicht über den Wortlaut der Beschreibung)
+      const schwelle = await ctx9.s.evaluate<{ name: string | null; desc: string | null }>(`
+        const it = Array.from(document.querySelectorAll(".setting-item")).find((s) => ((s.querySelector(".setting-item-name") || {}).textContent || "").trim() === "Confirmation threshold");
+        const d = it ? it.querySelector(".setting-item-description") : null;
+        return { name: it ? "Confirmation threshold" : null, desc: d ? (d.textContent || "").trim() : null };
+      `);
+      rec("Q6", schwelle.name !== null && /deletes at least this many files/.test(schwelle.desc ?? "") && /and at least a fifth/.test(schwelle.desc ?? ""),
+        `Zeile ${q(schwelle.name)} · Beschreibung ${q(schwelle.desc)}`);
 
       // blur: genau einmal speichern. Erst eine Änderung (Wurzel), dann derselbe Wert nochmal (kein Speichern).
       await cdp.evaluate(`window.__smoke.saves.root = 0; window.__smoke.saves.data = 0; return true;`);
@@ -703,6 +717,12 @@ async function main(): Promise<void> {
     rec("H", hWartet && hGruppe?.summary === "1 file edited in the vault" && hGruppe.open && hGruppe.rows.join() === hFile && (hGruppe.hint ?? "").includes("overwritten with the source version") && hLauf.fertig && hVorher?.startsWith("IM VAULT") === true && hNachher === text(join(MAIN, hFile)),
       `Vorschau ${q(hGruppe?.summary)} (offen=${hGruppe?.open}) ${q(hGruppe?.rows)} · Hinweis ${q(hGruppe?.hint)} · vor dem Lauf ${q(hVorher?.slice(0, 20))}…, danach gleich Quelle=${hNachher === text(join(MAIN, hFile))}`);
 
+    /* ── Q5: Warn-Knopf bei nur im Vault veränderter Datei (H: keine Löschung, kein Überschreiben-Häkchen) ───────── */
+    const q5Knopf = hLauf.dialog?.buttons.find((x) => x.text === "Run plan")?.cls ?? "";
+    const q5Kontrolle = dB2?.buttons.find((x) => x.text === "Run plan")?.cls ?? "";
+    rec("Q5", hLauf.dialog !== null && (hLauf.dialog.paras ?? []).includes("1 file edited in the vault") && !hLauf.dialog.paras.some((p) => /to delete/.test(p)) && /mod-(warning|destructive)/.test(q5Knopf) && q5Kontrolle !== "" && !/mod-(warning|destructive)/.test(q5Kontrolle),
+      `Dialog bei H: ${q(hLauf.dialog?.paras)} · „Run plan“-Klasse ${q(q5Knopf)} · Kontrolle (B2, nur neue Dateien) Klasse ${q(q5Kontrolle)}`);
+
     /* ── O4: Konflikte ─────────────────────────────────────────────────────────────────────────────────────────── */
     console.log("\nO4 · Konflikte und Überschreiben");
     const clash = ["repo-gamma/docs/clash1.md", "repo-gamma/docs/clash2.md"];
@@ -817,6 +837,50 @@ async function main(): Promise<void> {
     `);
     await cdp.evaluate(`app.commands.executeCommandById("docs-mirror:open"); return true;`);
     await warteStatus(cdp, "Up to date", 10000);
+
+    /* ── Q3: Entladen bei offener Bestätigung ──────────────────────────────────────────────────────────────────── */
+    console.log("\nQ3 · Entladen bei offener Bestätigung");
+    {
+      const q3Datei = join(MAIN, "repo-alpha/docs/q3-neu.md");
+      const q3Pfad = "repo-alpha/docs/q3-neu.md";
+      writeFileSync(q3Datei, "Q3: darf nach dem Entladen nicht in den Vault kommen.\n");
+      const q3Dot = await cdp.evaluate<boolean>(`return ${P}.settings.includeDotFolders;`);
+      const q3Wartet = await plane(cdp);
+      const q3Vor = await vaultDateien(cdp);
+      const q3ManVor = await geraetWert(cdp, "manifest");
+      await klick(cdp, PRIMAER);
+      const q3Dialog = await leseDialog(cdp);
+      const q3Entladen = await cdp.evaluate<{ pending: boolean }>(`
+        window.__smoke.q3p = ${P}; window.__smoke.q3last = ${P}.last ? ${P}.last.at : null;
+        window.__smoke.undo && window.__smoke.undo();
+        await app.plugins.disablePlugin(${q(PLUGIN_ID)});
+        return { pending: window.__smoke.q3p.runner.pending() !== null };
+      `);
+      const q3Offen = await cdp.evaluate<boolean>(`return Boolean(document.querySelector(".modal-container .modal"));`);
+      await klickeDialogKnopf(cdp, "Run plan");
+      await sleep(2500);
+      const q3Nach = await cdp.evaluate<{ running: boolean; lastGleich: boolean; fertigGeschrieben: boolean }>(`
+        const p = window.__smoke.q3p; return { running: p.running, lastGleich: (p.last ? p.last.at : null) === window.__smoke.q3last, fertigGeschrieben: await app.vault.adapter.exists(${q(q3Pfad)}) };
+      `);
+      const q3Tmp = await cdp.evaluate<string[]>(`const d = ${q(`.obsidian/plugins/${PLUGIN_ID}/tmp`)}; if (!(await app.vault.adapter.exists(d))) return []; return (await app.vault.adapter.list(d)).files;`);
+      const q3VaultNach = await vaultDateien(cdp);
+      const q3ManNach = await geraetWert(cdp, "manifest");
+      rec("Q3", q3Wartet && q3Dialog !== null && q3Entladen.pending && q3Offen && !q3Nach.running && q3Nach.lastGleich && !q3Nach.fertigGeschrieben && q3Tmp.length === 0 && JSON.stringify(q3Vor) === JSON.stringify(q3VaultNach) && q3ManVor === q3ManNach,
+        `Plan wartete=${q3Wartet}, Dialog ${q(q3Dialog?.title)} offen, Plugin entladen (Plan noch im alten Objekt=${q3Entladen.pending}, Dialog nach dem Entladen noch offen=${q3Offen}) · Klick „Run plan“ · nach 2,5 s: Lauf läuft=${q3Nach.running}, last unverändert=${q3Nach.lastGleich}, neue Datei im Vault=${q3Nach.fertigGeschrieben}, Temp-Reste ${q3Tmp.length}, Vault ${q3Vor.length}→${q3VaultNach.length} gleich=${JSON.stringify(q3Vor) === JSON.stringify(q3VaultNach)}, Manifest gleich=${q3ManVor === q3ManNach}`);
+      // Zurück in den Normalzustand: Datei weg, Plugin neu geladen (Einstellungen stehen noch auf dem geänderten Schalter), Schalter zurück, Spione neu.
+      rmSync(q3Datei);
+      await cdp.evaluate(`
+        await app.plugins.enablePlugin(${q(PLUGIN_ID)});
+        await ${P}.updateSettings({ includeDotFolders: ${q3Dot} });
+        const w = window; const p = ${P}; const r = p.runner; const o = r.run.bind(r); w.__smoke.runs = 0;
+        r.run = (...a) => { w.__smoke.runs += 1; return o(...a); };
+        const os = p.saveData.bind(p); p.saveData = (d) => { w.__smoke.saves.data += 1; return os(d); };
+        w.__smoke.undo = () => { r.run = o; p.saveData = os; };
+        return true;
+      `);
+      await cdp.evaluate(`app.commands.executeCommandById("docs-mirror:open"); return true;`);
+      await warteStatus(cdp, "Up to date", 15000);
+    }
 
     /* ── I, J ──────────────────────────────────────────────────────────────────────────────────────────────────── */
     /* ── I2, J2: die Quelle verschwindet, Fingerabdruck und Einstellungen bleiben ───────────────────────────────── */
@@ -1025,6 +1089,73 @@ async function main(): Promise<void> {
       await grossePhase();
     }
 
+    /* ── Q1, Q2: Vault und Quellwurzel ─────────────────────────────────────────────────────────────────────────── */
+    {
+      const VAULT_DIR = stagingVaultDir(REPO_NAME);
+      const STAGING = dirname(VAULT_DIR);
+      const Q1_DIR = stagingVaultDir("docs-mirror-q1");
+      const Q1_LINK = join(SRC_BASE, "q1link");
+      const excludedOrig = await cdp.evaluate<string[]>(`return ${P}.settings.excludedNames;`);
+      try {
+        console.log("\nQ1 · Wurzel als Symlink auf einen Elternordner des Vaults");
+        mkdirSync(join(Q1_DIR, "q1repo/docs"), { recursive: true });
+        writeFileSync(join(Q1_DIR, "q1repo/docs/q1.md"), "# Q1\nEine echte Quelldatei neben dem Vault.\n");
+        try { rmSync(Q1_LINK, { force: true }); } catch { /* nichts */ }
+        symlinkSync(STAGING, Q1_LINK);
+        // Die Wurzel (Staging) enthält viele fremde Vaults: nur der Vault und die Q1-Quelle werden betreten.
+        const fremde = readdirSync(STAGING).filter((n) => n !== REPO_NAME && n !== "docs-mirror-q1");
+        await cdp.evaluate(`await ${P}.updateSettings({ excludedNames: ${q([...excludedOrig, ...fremde])} }); return true;`);
+        const w1 = await setzeWurzel(cdp, port, Q1_LINK);
+        // Ein Plan aus O8 wartet noch: Plugin neu laden (Gerätezustand bleibt), damit der Lauf unten frisch plant.
+        await cdp.evaluate(`
+          await ${P}.updateSettings({ syncOnStart: false });
+          await app.plugins.disablePlugin(${q(PLUGIN_ID)}); await app.plugins.enablePlugin(${q(PLUGIN_ID)});
+          app.commands.executeCommandById("docs-mirror:open"); return true;
+        `);
+        await sleep(1000);
+        const vorQ1 = await vaultDateien(cdp);
+        await klick(cdp, PRIMAER);
+        const q1Wartet = await warteStatus(cdp, "Waiting for confirmation", 90000);
+        await klick(cdp, PRIMAER);
+        const q1Dialog = await leseDialog(cdp);
+        await klickeDialogKnopf(cdp, "Run plan");
+        const q1Fertig = await warteBis(cdp, `(() => { const e = document.querySelector(".dmr-status-text"); const t = e ? (e.textContent || "").trim() : ""; return t.startsWith("Up to date") || t.startsWith("Error"); })()`, 120000, 200);
+        await sleep(500);
+        const q1Ansicht = await lese(cdp);
+        const nachQ1 = await vaultDateien(cdp);
+        const verschachtelt = nachQ1.filter((f) => f.startsWith(`${REPO_NAME}/`));
+        const q1Datei = nachQ1.includes("docs-mirror-q1/q1repo/docs/q1.md");
+        const at1 = await lastAt();
+        await klick(cdp, PRIMAER);
+        await warteBis(cdp, `${P}.last && ${P}.last.at !== ${q(at1)}`, 60000, 200);
+        const q1Zweit = await cdp.evaluate<{ new: number; upd: number; del: number } | null>(`const c = ${P}.last && ${P}.last.counts; return c ? { new: c.created, upd: c.updated + c.overwritten, del: c.deleted } : null;`);
+        const q1Ansicht2 = await lese(cdp);
+        const nachQ1b = await vaultDateien(cdp);
+        rec("Q1", w1.root === Q1_LINK && q1Wartet && q1Dialog !== null && q1Fertig && q1Datei && verschachtelt.length === 0 && q1Zweit !== null && q1Zweit.new === 0 && q1Zweit.upd === 0 && nachQ1b.length === nachQ1.length,
+          `Wurzel ${q(w1.root)} (Symlink auf das Staging-Verzeichnis, darin der Vault) · erster Lauf: wartete=${q1Wartet}, Status ${q(q1Ansicht.statusText)}, Zähler ${q(q1Ansicht.counters)}; Vault ${vorQ1.length}→${nachQ1.length} Dateien · echte Quelldatei gespiegelt=${q1Datei} · Dateien unter ${REPO_NAME}/ (Vault-Kopien als Quelle gelesen): ${verschachtelt.length} ${q(verschachtelt.slice(0, 3))} · zweiter Lauf: ${q(q1Zweit)}, Status ${q(q1Ansicht2.statusText)}, Vault ${nachQ1b.length} Dateien`);
+      } finally {
+        try { rmSync(Q1_LINK, { force: true }); } catch { /* nichts */ }
+        try { rmSync(Q1_DIR, { recursive: true, force: true }); } catch { /* nichts */ }
+        await cdp.evaluate(`await ${P}.updateSettings({ excludedNames: ${q(excludedOrig)} }); return true;`);
+      }
+
+      console.log("\nQ2 · Wurzel gleich Vault");
+      const vorQ2 = await vaultDateien(cdp);
+      const mVorQ2 = await geraetWert(cdp, "manifest");
+      const w2 = await setzeWurzel(cdp, port, VAULT_DIR);
+      await clearNotices(cdp);
+      await klick(cdp, PRIMAER);
+      await warteBis(cdp, `Array.from(document.querySelectorAll(".notice")).some((n) => /this vault itself/.test(n.textContent || ""))`, 20000, 100);
+      const q2Notice = await notices(cdp);
+      const q2Ansicht = await lese(cdp);
+      const q2Wartet = await cdp.evaluate<boolean>(`return ${P}.runner.pending() !== null;`);
+      const nachQ2 = await vaultDateien(cdp);
+      const mNachQ2 = await geraetWert(cdp, "manifest");
+      rec("Q2", w2.root === VAULT_DIR && /source folder is this vault itself\. Nothing was written/.test(q2Notice) && !q2Wartet && JSON.stringify(vorQ2) === JSON.stringify(nachQ2) && mVorQ2 !== null && mVorQ2 === mNachQ2,
+        `Wurzel ${q(w2.root)} = Vault · Notice ${q(q2Notice)} · wartender Plan=${q2Wartet}, Status ${q(q2Ansicht.statusText)} · Vault ${vorQ2.length}→${nachQ2.length} gleich=${JSON.stringify(vorQ2) === JSON.stringify(nachQ2)} · Manifest unverändert=${mVorQ2 === mNachQ2}`);
+      await setzeWurzel(cdp, port, MAIN);
+    }
+
     /* ── Abschluss ─────────────────────────────────────────────────────────────────────────────────────────────── */
     async function grossePhase(): Promise<void> {
       const bigFiles = Array.from({ length: BIG_COUNT }, (_, i) => `bigrepo/docs/d${i % 30}/f${String(i).padStart(4, "0")}.md`);
@@ -1175,9 +1306,13 @@ async function main(): Promise<void> {
       // P: eine Quelldatei wird WÄHREND des Laufs gelöscht, eine andere verlängert. Beide stehen am Ende der Reihenfolge (d9, Pfad-Sortierung)
       // und sind jetzt, bei den ersten Dateien, noch nicht geschrieben: der Lauf trifft sie erst nach der Änderung.
       const P_WEG = "bigrepo/docs/d9/f3999.md"; const P_LANG = "bigrepo/docs/d9/f3849.md"; const P_DANACH = "bigrepo/docs/d9/f3969.md";
+      const Q4_FREMD = "bigrepo/docs/d9/f3939.md"; const Q4_TEXT = "FREMDE DATEI, entstanden nach dem Planen, darf der Lauf nicht anfassen\n";
       const pOrigWeg = text(join(BIG, P_WEG)); const pOrigLang = text(join(BIG, P_LANG));
       const pStart = { laeuft: await cdp.evaluate<boolean>(`return ${P}.running;`), weg: await vaultExistiert(cdp, P_WEG), lang: await vaultExistiert(cdp, P_LANG) };
       rmSync(join(BIG, P_WEG));
+      // Q4: am Ziel einer noch nicht geschriebenen neuen Datei entsteht im Vault eine fremde Datei (nach dem Planen, vor dem Schreiben).
+      const q4Vorher = await vaultExistiert(cdp, Q4_FREMD);
+      await cdp.evaluate(`await app.vault.adapter.mkdir("bigrepo/docs/d9"); await app.vault.adapter.write(${q(Q4_FREMD)}, ${q(Q4_TEXT)}); return true;`);
       writeFileSync(join(BIG, P_LANG), `${pOrigLang}\nWährend des Laufs verlängert.\n`);
       const lauf1m = await cdp.evaluate<{ animationName: string | null; anim: number; zeit: number | null; spielt: string | null; kl: string | null; aria: string | null; text: string | null; primaer: string | null; sek: boolean | null; trans: string | null }>(`
         const svg = document.querySelector(".dmr-status-icon svg"); window.__smoke.svg1 = svg; if (svg) svg.__smokeMarke = 1;
@@ -1238,9 +1373,15 @@ async function main(): Promise<void> {
       const pNachher = { weg: nach7.includes(P_WEG), lang: nach7.includes(P_LANG), danach: nach7.includes(P_DANACH) };
       const pMan = { weg: mkP.includes(P_WEG), lang: mkP.includes(P_LANG), danach: mkP.includes(P_DANACH), gross: mkP.filter((k) => k.startsWith("bigrepo/")).length };
       recL(pStart.laeuft && !pStart.weg && !pStart.lang, "P",
-        fertig7 && ans7.counters["Errors"] === 2 && ans7.statusText === "Error" && (ans7.error ?? "").startsWith("Sync finished with errors") &&
-        !pNachher.weg && !pNachher.lang && !pMan.weg && !pMan.lang && pNachher.danach && pMan.danach && pMan.gross === BIG_COUNT - 2,
-        `beim Eingriff: Lauf läuft=${pStart.laeuft}, die beiden Dateien noch nicht im Vault (gelöscht ${!pStart.weg}, verlängert ${!pStart.lang}) · danach: Status ${q(ans7.statusText)}, Fehlerzeile ${q(ans7.error)}, Zähler Errors=${ans7.counters["Errors"]}, Created=${ans7.counters["New"]} · gelöschte Datei im Vault=${pNachher.weg}, im Manifest=${pMan.weg} · verlängerte Datei im Vault=${pNachher.lang}, im Manifest=${pMan.lang} · eine spätere Datei (${P_DANACH}) im Vault=${pNachher.danach}, im Manifest=${pMan.danach} · Manifest-Einträge unter bigrepo ${pMan.gross} von ${BIG_COUNT - 2} erwartet`);
+        fertig7 && ans7.counters["Errors"] === 3 && ans7.statusText === "Error" && (ans7.error ?? "").startsWith("Sync finished with errors") &&
+        !pNachher.weg && !pNachher.lang && !pMan.weg && !pMan.lang && pNachher.danach && pMan.danach && pMan.gross === BIG_COUNT - 3,
+        `beim Eingriff: Lauf läuft=${pStart.laeuft}, die beiden Dateien noch nicht im Vault (gelöscht ${!pStart.weg}, verlängert ${!pStart.lang}) · danach: Status ${q(ans7.statusText)}, Fehlerzeile ${q(ans7.error)}, Zähler Errors=${ans7.counters["Errors"]}, Created=${ans7.counters["New"]} · gelöschte Datei im Vault=${pNachher.weg}, im Manifest=${pMan.weg} · verlängerte Datei im Vault=${pNachher.lang}, im Manifest=${pMan.lang} · eine spätere Datei (${P_DANACH}) im Vault=${pNachher.danach}, im Manifest=${pMan.danach} · Manifest-Einträge unter bigrepo ${pMan.gross} von ${BIG_COUNT - 3} erwartet (drei gestörte Dateien: gelöscht, verlängert, fremdes Ziel)`);
+      const q4Inhalt = await vaultLies(cdp, Q4_FREMD);
+      const q4Man = new Set(mkP);
+      const q4Fehlt = bigFiles.filter((f) => !q4Man.has(f));
+      recL(pStart.laeuft && !q4Vorher, "Q4",
+        fertig7 && q4Inhalt === Q4_TEXT && !mkP.includes(Q4_FREMD) && ans7.counters["Errors"] === 3,
+        `fremde Datei ${Q4_FREMD} MITTEN im Lauf im Vault angelegt (vorher da=${q4Vorher}, Lauf läuft=${pStart.laeuft}) · danach: Inhalt unverändert=${q4Inhalt === Q4_TEXT} (${q(q4Inhalt?.slice(0, 40))}), im Manifest=${mkP.includes(Q4_FREMD)}, im Manifest fehlen ${q4Fehlt.length}: ${q(q4Fehlt.slice(0, 5))}, Errors=${ans7.counters["Errors"]} (erwartet 3: gelöscht, verlängert, fremdes Ziel)`);
       // Quelle wiederherstellen (das nächste --setup baut sie ohnehin neu).
       writeFileSync(join(BIG, P_WEG), pOrigWeg);
       writeFileSync(join(BIG, P_LANG), pOrigLang);
