@@ -1,6 +1,7 @@
 import { PluginSettingTab, type App, type Plugin, type Setting, type SettingDefinitionItem } from "obsidian";
 import { t, tn, type StringKey } from "../i18n/strings";
-import { parseList, type DocsMirrorSettings, type RootCheck } from "../core/settings";
+import type { DocsMirrorSettings, RootCheck } from "../core/settings";
+import { splitList } from "../vendor/kit/split-list";
 import { parsePatterns } from "../vendor/kit/ignore";
 import { githubHelpUrls, helpSettingDefinition, type HelpSettingOptions } from "../vendor/kit-obsidian/help-setting";
 import { renderSettingDefinitions } from "../vendor/kit-obsidian/settings_walker";
@@ -158,7 +159,9 @@ export class DocsMirrorSettingTab extends PluginSettingTab {
         return bad.length === 0 ? null : { text: tn("settings.patternsInvalid", bad.length, { list: bad.join(", ") }), kind: "warning" };
       },
       commit: async (text) => {
-        const items = clean(parseList(text));
+        // Ordnermuster: ein Muster je Zeile (ein Komma gehört zum Muster); Namen und Dateitypen: Zeilen oder Kommas.
+        const parts = key === "patterns" ? splitList(text, "\n") : splitList(text.replace(/\r?\n/g, ","));
+        const items = clean([...new Set(parts)]);
         if (items.length === 0) return { ok: false, problem: "settings.listEmpty" };
         if (JSON.stringify(items) !== JSON.stringify(this.host.settings[key])) await this.host.updateSettings({ [key]: items });
         return { ok: true };

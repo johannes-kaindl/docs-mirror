@@ -1,6 +1,7 @@
 import { sha256Hex } from "../vendor/kit/sha256";
 import type { Manifest, ManifestEntry } from "./manifest";
-import { foldKey as fold, type ScanResult, type SourceFile } from "./scan";
+import { foldCase as fold } from "../vendor/kit/fold-case";
+import type { ScanResult, SourceFile } from "./scan";
 
 /** Der Vault, in den gespiegelt wird (Adapter der Vault-API). Pfade sind relativ zum Zielordner, `/`-getrennt.
  *  `list` liefert alle Dateien (keine Ordner) unterhalb des Zielordners, so wie das Dateisystem sie nennt

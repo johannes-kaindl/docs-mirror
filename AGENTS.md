@@ -19,7 +19,7 @@ Orientierung für KI-Agenten und Mitwirkende an diesem Repository. Workspace-wei
 ```
 src/main.ts                 Plugin: Befehle, Ribbon, Startlauf (2000 ms nach onLayoutReady), Läufe, Host der Ansicht
 src/core/                   rein, ohne obsidian-Import (check:pure)
-  settings.ts               DocsMirrorSettings, loadSettings, validateRoot, parseList
+  settings.ts               DocsMirrorSettings, loadSettings, validateRoot
   scan.ts                   scanSource: Quelle → Dateien, Kollisionen, unlesbare Ordner; Symlinks und Übergrößen werden übersprungen
   plan.ts                   buildPlan: Scan + Manifest + Vault → Klassen (new, changed, unchanged, delete, conflict, vault-modified, vault-only)
   guards.ts                 checkGuards: Löschschutz, Schwelle, Fingerabdruck, Gesamtgröße, Konflikte
@@ -77,7 +77,7 @@ scripts/probe-adapter.ts    Adapter-Messung (docs/ADAPTER-MESSUNG.md)
 - **Gerätelokaler Zustand:** Wurzel, Manifest, Fingerabdruck und letzter Lauf liegen in `app.loadLocalStorage` je Vault und Gerät, nie in `data.json` und nie im Vault. Ein zweites Gerät startet „nicht eingerichtet“. Ein Manifest über 2 MB meldet eine Notice.
 - **Wurzel pro Lauf eingefroren:** `perform` baut den Quellanschluss einmal. Ein Wurzelwechsel mitten im Lauf wirkt erst im nächsten Lauf (Smoke O7, 2026-10-28).
 - **Fokus beim Neuaufbau:** `render()` merkt den Fokus über `data-dmr-focus`; ohne das fiel er auf `body` (Smoke O4c, Commit 74c5da7, 2026-10-28).
-- **Ordnermuster kennen keine Brace-Globs.** `**/{docs,doc}` ist ein wörtliches Muster und trifft nur einen Ordner namens `{docs,doc}` (gemessen 2026-10-29 mit `src/vendor/kit/ignore.ts`). Je Zeile ein Muster schreiben. Der Kommentar in `src/core/settings.ts` (`parseList`) nennt Brace-Globs noch als Fall; das ist ein Befund, kein Verhalten.
+- **Ordnermuster kennen keine Brace-Globs.** `**/{docs,doc}` ist ein wörtliches Muster und trifft nur einen Ordner namens `{docs,doc}` (gemessen 2026-10-29 mit `src/vendor/kit/ignore.ts`). Je Zeile ein Muster schreiben; im Feld „Ordnermuster“ trennen nur Zeilenumbrüche, ein Komma gehört zum Muster. Die Einstellungs-Beschreibung sagt es, `tests/patterns-literal.test.ts` belegt es. Die frühere Plugin-Funktion `parseList` (Klammertiefe) und `foldKey` hat der Gegenleser am 2026-10-30 abgelehnt; sie sind durch `splitList` und `foldCase` aus code-kit 0.44.0 ersetzt.
 - **`replace` löscht nie ein Ziel selbst (2026-10-29, B1 der Gesamt-Review):** `rename` wirft bei vorhandenem Ziel, und das schützt eine Datei, die erst nach dem Planen entstand; das alte Ziel entfernt nur `applyPlan` (Test `tests/apply.test.ts` „B1“, `tests/vault-io.test.ts`).
 - **Die Wurzel darf den Vault nicht enthalten (2026-10-29, I1):** liegt der Vault unter der Wurzel, schließt der Scan ihn über `skipPaths` aus, sonst läse der nächste Lauf die Spiegelkopien als Quelle; ist die Wurzel der Vault, blockiert der Lauf (`vault-is-root`). Der Basispfad kommt je Lauf aus `FileSystemAdapter.getBasePath()`; Symlinks löst der reine Vergleich nicht auf (`src/core/vault-location.ts`).
 - **Fokus-Rückfall über `data-dmr-group` (2026-10-29):** fehlt das fokussierte Element nach dem Neuaufbau (etwa eine abgehakte Zeile), fällt der Fokus auf die Zusammenfassung seiner Gruppe zurück (`GROUP_ATTR` in `src/obsidian/plan-view.ts`, Commit ff763e7); ohne den Rückfall landete er auf `body`.

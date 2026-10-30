@@ -128,6 +128,19 @@ describe("Settings-Tab: Textfelder speichern bei blur, nicht je Tastendruck", ()
     expect(h.saved).toEqual([{ patterns: ["**/docs", "apps/*/doc"] }]);
   });
 
+  it("Muster: ein Komma gehört zum Muster, geschweifte Klammern gelten wörtlich", async () => {
+    const { h, row, type } = open();
+    await type("Folder patterns", "**/{docs,doc}\nx");
+    expect(h.saved).toEqual([{ patterns: ["**/{docs,doc}", "x"] }]);
+    expect(row("Folder patterns").components[0].getValue()).toContain("{docs,doc}");
+  });
+
+  it("Dateitypen und Namen: Zeilen und Kommas trennen", async () => {
+    const { h, type } = open();
+    await type("Excluded names", "a, b\nc");
+    expect(h.saved).toEqual([{ excludedNames: ["a", "b", "c"] }]);
+  });
+
   it("Dateitypen: ohne Punkt, klein", async () => {
     const { h, type } = open();
     await type("File types", ".MD, png");

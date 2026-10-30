@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DEFAULT_SETTINGS, loadSettings, parseList, validateRoot } from "../src/core/settings";
+import { DEFAULT_SETTINGS, loadSettings, validateRoot } from "../src/core/settings";
 
 describe("DEFAULT_SETTINGS", () => {
   it("trägt die Standardwerte aus der Spec", () => {
@@ -63,23 +63,6 @@ describe("loadSettings", () => {
     const s = loadSettings(undefined);
     s.patterns.push("x");
     expect(DEFAULT_SETTINGS.patterns).toEqual(["**/docs"]);
-  });
-});
-
-describe("parseList", () => {
-  it("trennt an Zeilen und Kommas, trimmt, entfernt Leeres und Doppeltes", () => {
-    expect(parseList(" a, b\n\nc ,a\r\n d ")).toEqual(["a", "b", "c", "d"]);
-  });
-  it("trennt nicht an Kommas innerhalb geschweifter Klammern", () => {
-    expect(parseList("**/{docs,doc}, x")).toEqual(["**/{docs,doc}", "x"]);
-    expect(parseList("a/{b,{c,d}},e\nf")).toEqual(["a/{b,{c,d}}", "e", "f"]);
-  });
-  it("einfache Fälle, Duplikate, Leerzeilen", () => {
-    expect(parseList("a, b\nc")).toEqual(["a", "b", "c"]);
-    expect(parseList("a\n\n\nb\na")).toEqual(["a", "b"]);
-  });
-  it("leerer Text liefert eine leere Liste", () => {
-    expect(parseList("  \n ,")).toEqual([]);
   });
 });
 

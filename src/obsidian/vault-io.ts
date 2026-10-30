@@ -1,6 +1,6 @@
 import type { App } from "obsidian";
 import type { VaultPort } from "../core/plan";
-import { foldKey } from "../core/scan";
+import { foldCase } from "../vendor/kit/fold-case";
 import { checkRelPath } from "../vendor/kit/rel-path";
 
 /** Präfix der Temp-Namen, die `applyPlan` vergibt (`.dmr-tmp-N`); solche Namen ohne `/` liegen im Temp-Verzeichnis. */
@@ -37,8 +37,8 @@ export function createVaultPort(app: App, tempDir: string): VaultPort {
     return p;
   };
   // Gefaltet: auf einem case-insensitiven Dateisystem erreicht `.OBSIDIAN/x` dasselbe Verzeichnis.
-  const configKey = foldKey(configDir);
-  const underConfig = (p: string): boolean => { const k = foldKey(p); return k === configKey || k.startsWith(`${configKey}/`); };
+  const configKey = foldCase(configDir);
+  const underConfig = (p: string): boolean => { const k = foldCase(p); return k === configKey || k.startsWith(`${configKey}/`); };
   /** Zielpfad im Vault: wie `safe`, kein Wurzelname im Temp-Schema (der würde als Temp-Datei gelesen) und nie unter
    *  `configDir` (dort liegen Einstellungen und Plugins, die der Spiegel nicht anfasst). */
   const target = (p: string): string => {

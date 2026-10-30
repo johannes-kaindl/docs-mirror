@@ -1,3 +1,4 @@
+import { foldCase } from "../vendor/kit/fold-case";
 import { matchIgnore, parsePatterns, type IgnoreRule } from "../vendor/kit/ignore";
 import type { DocsMirrorSettings } from "./settings";
 
@@ -39,16 +40,11 @@ export interface ScanResult {
 }
 
 const nfc = (s: string): string => s.normalize("NFC");
-/** Faltungsschlüssel für Kollisionen: NFC, dann klein, groß, klein. NFC im Schlüssel ist bewusst redundant zu `walk`
- *  (Defense in Depth): die Kollisionslogik soll auch dann halten, wenn ein Aufrufer Rohpfade übergibt.
- *
- *  Warum die Dreifachfaltung: reines Kleinschreiben übersieht Paare, die case-insensitive Dateisysteme gleich behandeln
- *  (Messung in der Gesamt-Review: s/ſ, σ/ς, ß/ẞ kollidierten nicht). Der Hin-und-zurück-Weg über Großbuchstaben ist eine
- *  Obermenge der bisherigen Faltung und der des Kits. Zu viel falten kostet nur mehr `case-collision`-Konflikte (ss/ß und
- *  fi/ﬁ fallen bewusst zusammen), nie eine Löschung: gelöscht wird nur bei exakt gleichem NFC-Namen. code-kit
- *  `filesystemPath` faltet genauso, bringt aber NFKC und Windows-Regeln mit und hat eine ẞ-Lücke; die Extraktion einer
- *  gemeinsamen `foldCase` ist Folgearbeit des Masters. */
-export const foldKey = (s: string): string => nfc(s).toLowerCase().toUpperCase().toLowerCase();
+/* Faltungsschlüssel für Kollisionen ist `foldCase` aus code-kit (NFC, dann klein, groß, klein). NFC im Schlüssel ist bewusst
+ * redundant zu `walk` (Defense in Depth): die Kollisionslogik soll auch dann halten, wenn ein Aufrufer Rohpfade übergibt.
+ * Zu viel falten kostet nur mehr `case-collision`-Konflikte (ss/ß/ẞ und fi/ﬁ fallen bewusst zusammen), nie eine Löschung:
+ * gelöscht wird nur bei exakt gleichem NFC-Namen. Bis 0.1.x stand die Faltung als eigene Kopie hier; der Gegenleser
+ * (2026-10-30) lehnte sie ab, sie liegt seit code-kit 0.44.0 im Kit. */
 const join = (dir: string, name: string): string => (dir === "" ? name : `${dir}/${name}`);
 
 function extOf(name: string): string {
@@ -70,7 +66,7 @@ export async function scanSource(
   tick?: () => Promise<void>,
   options: ScanOptions = {},
 ): Promise<ScanResult> {
-  const skipKeys = new Set((options.skipPaths ?? []).filter((p) => p !== "").map(foldKey));
+  const skipKeys = new Set((options.skipPaths ?? []).filter((p) => p !== "").map(foldCase));
   const parsed = parsePatterns(s.patterns.join("\n"));
   const rules: IgnoreRule[] = parsed.rules;
   const excluded = new Set(s.excludedNames.map(nfc));
@@ -101,7 +97,7 @@ export async function scanSource(
       const name = nfc(entry.name);
       const path = join(dir, name);
       const rawPath = join(rawDir, entry.name);
-      const skip = excluded.has(name) || (skipKeys.size > 0 && skipKeys.has(foldKey(path))) || (entry.kind === "dir" && name.startsWith(".") && !s.includeDotFolders);
+      const skip = excluded.has(name) || (skipKeys.size > 0 && skipKeys.has(foldCase(path))) || (entry.kind === "dir" && name.startsWith(".") && !s.includeDotFolders);
       const isMatch = !inMatch && entry.kind !== "file" && matchIgnore(rules, path) !== null;
       // Ausgeschlossene Einträge bleiben in der Schleife, damit `tick` auch für sie läuft.
       if (skip) {
@@ -136,7 +132,7 @@ export async function scanSource(
   // Kollisionen über die ganzen Zielpfade der gesammelten Dateien (fängt Datei- und Ordnerebene).
   const groups = new Map<string, { file: SourceFile; raw: string }[]>();
   for (const c of collected) {
-    const k = foldKey(c.file.path);
+    const k = foldCase(c.file.path);
     groups.set(k, [...(groups.get(k) ?? []), c]);
   }
   for (const members of groups.values()) {
