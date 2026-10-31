@@ -4,7 +4,7 @@ Orientierung für KI-Agenten und Mitwirkende an diesem Repository. Workspace-wei
 
 **Profil:** `ts-node` · `obsidian-plugin`.
 
-**Stand 2026-10-29: Version 0.1.0 umgesetzt, release-reif, nicht veröffentlicht.** Kein Tag, kein Release, kein Push nach GitHub, kein Store-Eintrag; das fährt der Master (CORE-AGENT-14). GUI-Smoke gegen Obsidian 1.15.0: 38 grün, 0 rot, 1 übersprungen von 39 Punkten (Messung in `docs/SMOKE.md`).
+**Stand 2026-10-31: Version 0.1.0 umgesetzt, release-reif, nicht veröffentlicht.** Kein Tag, kein Release, kein Push nach GitHub, kein Store-Eintrag; das fährt der Master (CORE-AGENT-14). GUI-Smoke gegen Obsidian 1.15.0: 47 grün, 0 rot, 1 übersprungen von 48 Punkten (Messung in `docs/SMOKE.md`); Nutzer-Doku nach Diátaxis unter `docs/` (Index `docs/README.md`).
 
 ## Project character
 
@@ -34,7 +34,7 @@ src/obsidian/               einzige Stellen mit Vault- und Quellzugriff
   settings-tab.ts           Einstellungen (deklarativ, Kit-Walker als Fallback)
   confirm-run.ts            Bestätigung über den Kit-Dialog
 src/i18n/strings.ts         alle Texte, EN kanonisch, DE vollständig
-src/vendor/kit/, src/vendor/kit-obsidian/   Snapshots aus obsidian-kit 0.73.0 und code-kit 0.43.0 (je VENDOR.json), nie von Hand
+src/vendor/kit/, src/vendor/kit-obsidian/   Snapshots aus obsidian-kit 0.73.0 und code-kit 0.44.0 (je VENDOR.json), nie von Hand
 fixtures/source, fixtures/vault   Quelle und Vault für den GUI-Smoke
 scripts/gui-smoke.ts        CDP-Treiber gegen eine Zweitinstanz (Rezept im Dateikopf)
 scripts/probe-adapter.ts    Adapter-Messung (docs/ADAPTER-MESSUNG.md)
@@ -90,4 +90,4 @@ scripts/probe-adapter.ts    Adapter-Messung (docs/ADAPTER-MESSUNG.md)
 
 Keine gegen die Leitkonvention. Abweichungen von der Spec, vom Master übernommen (Task-Note „Plan weicht in drei Punkten von der Spec ab“, 2026-10-28): Vorschau ohne `buildReviewList`, Klasse `vault-missing`, eigene Schreibfolge statt atomarem Ersetzen.
 
-Offen (Stand 2026-10-30): `devDependencies.obsidian` ist auf 1.13.1 gepinnt (Commit `1f1019d`). Die Hilfe-Zeile in den Einstellungen verlinkt auf GitHub (`docs/README.md` und Issues); dieses Ziel existiert vor dem ersten Release nicht.
+Offen (Stand 2026-10-31): `devDependencies.obsidian` ist auf 1.13.1 gepinnt (Commit `1f1019d`). Die Hilfe-Zeile in den Einstellungen verlinkt auf GitHub (`docs/README.md` und Issues); die Datei liegt im Repo, das Ziel auf GitHub existiert erst nach dem Spiegeln.

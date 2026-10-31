@@ -53,7 +53,7 @@ export const STRINGS = {
     "count.errors": "Errors",
 
     "guard.first-run": "First run: check the plan before anything is written.",
-    "guard.threshold": "This run deletes at least as many files as the threshold.",
+    "guard.threshold": "This run deletes at least as many files as the threshold, and at least 20 percent of the recorded files.",
     "guard.settings-changed": "Settings changed since the last run, or the state of this device is unknown.",
     "guard.total-size": "The files to mirror exceed the total size limit.",
     "guard.conflicts": "Some files already exist in the vault and were not created by this plugin.",
@@ -175,7 +175,7 @@ export const STRINGS = {
     "count.errors": "Fehler",
 
     "guard.first-run": "Erster Lauf: Prüfe den Plan, bevor etwas geschrieben wird.",
-    "guard.threshold": "Dieser Lauf löscht mindestens so viele Dateien, wie die Schwelle angibt.",
+    "guard.threshold": "Dieser Lauf löscht mindestens so viele Dateien, wie die Schwelle angibt, und mindestens 20 Prozent der verzeichneten Dateien.",
     "guard.settings-changed": "Die Einstellungen haben sich seit dem letzten Lauf geändert, oder der Stand dieses Geräts ist unbekannt.",
     "guard.total-size": "Die zu spiegelnden Dateien überschreiten die Gesamtgrößen-Grenze.",
     "guard.conflicts": "Einige Dateien liegen schon im Vault und stammen nicht von diesem Plugin.",

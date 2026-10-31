@@ -38,7 +38,7 @@ A run waits for confirmation if at least one of these five reasons applies. The 
 | Reason | Text in the interface | When |
 |---|---|---|
 | First run | "First run: check the plan before anything is written." | This device has no record of mirrored files yet. |
-| Threshold | "This run deletes at least as many files as the threshold." | The run deletes at least the threshold number of files (default 20) and at least 20 percent of the recorded files. |
+| Threshold | "This run deletes at least as many files as the threshold, and at least 20 percent of the recorded files." | The run deletes at least the threshold number of files (default 20) and at least 20 percent of the recorded files. |
 | Settings changed | "Settings changed since the last run, or the state of this device is unknown." | The settings fingerprint differs from the saved one, or a record exists without a saved fingerprint. |
 | Total size | "The files to mirror exceed the total size limit." | The size of the whole mirror after the run is larger than the total size limit. |
 | Conflicts | "Some files already exist in the vault and were not created by this plugin." | The plan contains at least one conflict, of any kind. |

@@ -37,7 +37,7 @@ describe("confirmRun", () => {
   it("Gründe stehen in der Reihenfolge des Vertrags", () => {
     void confirmRun({} as never, ["threshold", "settings-changed", "total-size"], plan(items));
     const lines = paragraphs();
-    expect(lines.indexOf("This run deletes at least as many files as the threshold.")).toBeLessThan(lines.indexOf("Settings changed since the last run, or the state of this device is unknown."));
+    expect(lines.indexOf("This run deletes at least as many files as the threshold, and at least 20 percent of the recorded files.")).toBeLessThan(lines.indexOf("Settings changed since the last run, or the state of this device is unknown."));
     expect(lines.indexOf("Settings changed since the last run, or the state of this device is unknown.")).toBeLessThan(lines.indexOf("The files to mirror exceed the total size limit."));
   });
 
