@@ -41,12 +41,12 @@ Nachlauf 2026-10-29 gegen HEAD ad71616 (main.js md5 c4f18d456806ff81a362bf17b1fa
 
 ## Beobachtungen
 
-Die ersten vier Beobachtungen sind im Code behoben (Stand 2026-10-31); ob die Layout-Wirkung stimmt, ist ungemessen und braucht Screenshots in der schmalen Seitenleiste.
+Die ersten vier Beobachtungen sind behoben und am 2026-10-31 an Screenshots der Zweitinstanz gesehen (Obsidian 1.15.0, dunkles Theme, Seitenleiste bei 140 und 276 px; 116 px ist nicht aufgenommen). Beim ersten Bild lief die Zeitangabe mit `white-space: nowrap` über den Kartenrand und wurde abgeschnitten, das ist mit Commit ce792c7 behoben.
 
 - Bei 116 px Breite der Seitenleiste brach das Statuswort mitten im Wort („confirmati/on“, `overflow-wrap: anywhere` an `.dmr-status-text`). Jetzt bricht die Zeile an Wortgrenzen um; ein Wort bricht erst, wenn es allein breiter ist als die Zeile.
 - In den Konfliktzeilen saßen Kästchen und Pfad nicht auf einer Grundlinie, und die Notiz „Already in the vault …“ stand ohne Einzug darunter. Die Zeile richtet sich jetzt an der Mitte aus, die Notiz unter einem Kästchen ist eingerückt.
 - Die Karte „Last run“ blieb während eines Laufs sichtbar und zeigte den vorigen Lauf. Sie ist jetzt während des Laufs ausgeblendet (die Statuszeile zeigt den Fortschritt).
-- Die Zeitangabe in der Überschrift der Ergebniskarte („Last run: 10/28/2026, 12:06:39 PM“) brach in der schmalen Seitenleiste um. Sie steht jetzt als Ganzes in einem eigenen Knoten und rutscht nur als Ganzes in die nächste Zeile.
+- Die Zeitangabe in der Überschrift der Ergebniskarte („Last run: 10/28/2026, 12:06:39 PM“) brach in der schmalen Seitenleiste um. Sie steht jetzt in einem eigenen Knoten unter der Beschriftung und bricht nur an Leerzeichen; bei 140 px, wo das Datum allein breiter ist als die Karte, bricht es als letzter Ausweg innerhalb des Datums („10/31/20“ und „26,“), statt abgeschnitten zu werden. Die Zählzeilen rutschen bei so schmaler Karte mit dem Wert unter die Beschriftung.
 - Offen, kein Defekt: Notices liegen oben rechts über der Aktionszeile und fangen dort einen Klick ab (Obsidian-Verhalten, der Treiber räumt sie vor jedem Klick weg).
 
 ## Nicht gemessen und Grenzen
@@ -81,6 +81,6 @@ Mutation in einer temporären Kopie von `src/` (mit `tsconfig.json`), gebaut mit
 | Q3 | beide `unloaded`-Prüfungen entfernt (`executePlan` und `perform`) | 468e30460e53f386531c0b7da2778781 | Q3 rot (neue Datei im Vault, Vault 8 → 9, Manifest geändert); I2, J2, I, J, K rot als Folge (Vault verändert); 28 grün, 6 rot (`--ohne-gross`). Eine Prüfung allein genügt nicht: die zweite fängt es ab |
 | Q5 | `vault-modified` aus der Warn-Bedingung entfernt | aa7c92e18d6c5ccc4ad097b035f8e677 | Q5 rot; der Lauf brach danach durch die Umgebung ab (Q5 steht davor im Log) |
 | Q6 | Text ohne „at least“ | 2b05f8e5d200e6a6e2ccde8e9ad87e76 | Q6 rot; 33 grün, 1 rot, 13 übersprungen, 1 nichts gemessen (`--ohne-gross`) |
-| Q4 | `replace` entfernt ein vorhandenes Ziel vor dem `rename` | d5024bb7c7ec3c54032f806e9b1b1a26 | NICHT GEMESSEN: drei Läufe brachen vor Q4 durch die Umgebung ab (Zeitüberschreitung bei `app.setting.open()`); später brachen auch zwei Läufe des unmutierten Builds in der Nacht ab (O10c), die Ursache ist die Umgebung (Rechner im Ruhezustand), nicht der Build. Die rote Gegenprobe zu Q4 steht aus |
+| Q4 | `replace` entfernt ein vorhandenes Ziel vor dem `rename` | 2cbf6a4480d71956c515f621d24127e3 (Kontroll-Build derselben Kopie ohne Mutation: 302626d8e05464ae2bbc8936861325e2, md5-gleich dem Repo-`main.js` bei ce792c7) | Q4 rot (die fremde Datei am Ziel wird überschrieben, Inhalt nicht mehr unverändert, Manifest-Eintrag vorhanden, Errors=2 statt 3), P rot als Folge (Manifest 3998 statt 3997 Einträge); 45 grün, 2 rot, 1 übersprungen, 0 nichts gemessen. Gemessen am 2026-10-31 (110 s, ein Lauf) |
 
 Der Fokus-Rückfall auf die Gruppen-Summary (verschwindet das Ziel) ist im Smoke nicht erreichbar (der Smoke-Plan behält das Ziel) und wird im Unit-Test belegt: ohne den Rückfall ist `tests/view.test.ts` rot (1 von 27), mit ihm grün.
