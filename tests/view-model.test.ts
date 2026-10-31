@@ -269,7 +269,7 @@ describe("buildViewModel: Hinweise zum Plan", () => {
   });
   it("DE: Größe mit Komma", () => {
     setLang("de");
-    expect(vm({ status: "waiting", waiting: true, plan: plan([], { mirrorBytes: 63_201_294 }) }).notes).toEqual(["Der Vault hätte danach 63,2 MB"]);
+    expect(vm({ status: "waiting", waiting: true, plan: plan([], { mirrorBytes: 63_201_294 }) }).notes).toEqual(["Der Vault wäre danach 63,2 MB groß"]);
   });
   it("ohne Angabe von reasons gibt es keine Gründe", () => {
     expect(buildViewModel({ status: "current", last: null, plan: null, progress: null, waiting: false }, fmt).reasons).toEqual([]);

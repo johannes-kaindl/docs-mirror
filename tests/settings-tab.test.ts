@@ -281,6 +281,6 @@ describe("Settings-Tab: Wurzelfeld", () => {
     setLang("de");
     const { note, type } = open();
     await type("Quellordner", "~/x");
-    expect(note("Quellordner").textContent).toBe("Ein Pfad mit ~ wird nicht unterstützt: schreibe den vollständigen Pfad aus.");
+    expect(note("Quellordner").textContent).toBe("Ein Pfad mit ~ wird nicht unterstützt: Schreibe den vollständigen Pfad aus.");
   });
 });

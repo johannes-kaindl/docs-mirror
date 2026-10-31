@@ -39,7 +39,7 @@ Für die Ersteinrichtung folge [docs/getting-started.md](docs/getting-started.md
 - **Gesamtgrößen-Grenze:** ein Lauf, der den gespiegelten Vault über diese Größe brächte, fragt vorher nach. Standard: 1 GB.
 - **Schwelle für Bestätigung:** ein Lauf, der mindestens so viele Dateien löscht und dabei mindestens ein Fünftel der gespiegelten Dateien trifft, fragt vorher nach. Standard: 20 Dateien. Der Fünftel-Anteil ist fest und nicht einstellbar.
 - **Punkt-Ordner:** Ordner einbeziehen, deren Name mit einem Punkt beginnt. Standardmäßig aus.
-- **Beim Vault-Start synchronisieren:** zwei Sekunden nach dem Laden des Arbeitsbereichs einen Lauf starten. Standardmäßig aus. Braucht der Lauf eine Bestätigung, wartet er in der Seitenleiste und zeigt eine Mitteilung statt eines Fensters. Ist schon ein Lauf, eine Bestätigung oder ein wartender Plan vorhanden, entfällt der Start-Lauf still.
+- **Beim Vault-Start synchronisieren:** zwei Sekunden nach dem Laden des Arbeitsbereichs einen Lauf starten. Standardmäßig aus. Braucht der Lauf eine Bestätigung, wartet er in der Seitenleiste und zeigt eine Mitteilung statt eines Fensters. Ist schon ein Lauf, eine Bestätigung oder ein wartender Plan vorhanden, entfällt der Startlauf still.
 
 ## Befehle
 

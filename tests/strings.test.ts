@@ -96,8 +96,8 @@ describe("strings", () => {
     setLang("de");
     expect(t("guard.total-size")).toBe("Die zu spiegelnden Dateien überschreiten die Gesamtgrößen-Grenze.");
     expect(t("plan.hint.settings-changed")).toMatch(/^Die Einstellungen haben sich .*\.$/);
-    expect(tn("plan.vault-modified", 1)).toBe("1 Datei im Vault verändert");
-    expect(tn("plan.vault-modified", 4)).toBe("4 Dateien im Vault verändert");
+    expect(tn("plan.vault-modified", 1)).toBe("1 im Vault veränderte Datei");
+    expect(tn("plan.vault-modified", 4)).toBe("4 im Vault veränderte Dateien");
   });
 
   it("Ordnermuster werden als Muster erklärt, nicht als Ausschluss", () => {
