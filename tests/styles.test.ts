@@ -29,10 +29,14 @@ describe("styles.css (Form)", () => {
     expect(rule(".dmr-row-note")).toContain("flex: 1 1 100%");
   });
 
-  it("Kosmetik 4: die Zeitangabe der Ergebniskarte bricht nicht mitten in der Angabe", () => {
+  it("Kosmetik 4: die Zeitangabe der Ergebniskarte wird nicht abgeschnitten und bricht nur an Leerzeichen", () => {
     const time = rule(".dmr-last-time");
-    expect(time).toContain("white-space: nowrap");
     expect(time).toContain("display: inline-block");
+    expect(time).toContain("max-width: 100%");
+    expect(time).toContain("overflow-wrap: break-word");
+    expect(time).not.toContain("nowrap");
+    expect(rule(".dmr-counter")).toContain("flex-wrap: wrap");
+    expect(rule(".dmr-counter-label")).not.toContain("overflow-wrap");
   });
 
   it("Regeln des Repos: kein !important, kein :has()", () => {

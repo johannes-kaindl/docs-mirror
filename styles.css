@@ -62,8 +62,8 @@
   margin-bottom: var(--size-4-3);
 }
 .dmr-card-heading { margin: 0 0 var(--size-4-2); font-size: var(--font-ui-medium); }
-/* Die Zeitangabe bricht nie mitten in der Angabe: passt sie nicht neben die Beschriftung, steht sie in der nächsten Zeile. */
-.dmr-last-time { display: inline-block; white-space: nowrap; }
+/* Die Zeitangabe steht in der Zeile unter der Beschriftung und bricht nur an Leerzeichen; ist sie breiter als die Karte, bricht sie, statt abgeschnitten zu werden (gemessen bei 140 px Seitenleiste, 2026-10-31). */
+.dmr-last-time { display: inline-block; max-width: 100%; overflow-wrap: break-word; }
 .dmr-reason { color: var(--text-normal); font-size: var(--font-ui-small); margin-bottom: var(--size-4-1); }
 .dmr-note { color: var(--text-muted); font-size: var(--font-ui-small); margin-bottom: var(--size-4-1); }
 .dmr-error { color: var(--text-error); font-size: var(--font-ui-small); margin-bottom: var(--size-4-2); }
@@ -92,7 +92,7 @@
 
 /* Zähler des letzten Laufs */
 .dmr-counters { display: flex; flex-direction: column; gap: var(--size-4-1); }
-.dmr-counter { display: flex; justify-content: space-between; gap: var(--size-4-2); font-size: var(--font-ui-small); }
+.dmr-counter { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: var(--size-4-2); font-size: var(--font-ui-small); }
 .dmr-counter-label { color: var(--text-muted); }
 
 /* Einstellungen: Hinweis unter einem Feld, Form (Text) trägt, die Farbe unterstützt. */
