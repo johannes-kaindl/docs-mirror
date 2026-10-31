@@ -43,6 +43,11 @@ export interface ViewModel {
   statusIcon: StatusIcon;
   statusClass: StatusClass;
   lastRun: string | null;
+  /** Die Überschrift der Ergebniskarte in zwei Teilen, damit die Ansicht die Zeitangabe als Ganzes umbrechen lässt. */
+  lastRunLabel: string | null;
+  lastRunTime: string | null;
+  /** Die Karte des letzten Laufs ist nur sichtbar, solange kein Lauf läuft: sonst zeigte sie den vorigen Lauf neben dem laufenden. */
+  showResult: boolean;
   lastError: string | null;
   counters: RunCounts | null;
   counterRows: { key: keyof RunCounts; label: string; value: number }[];
@@ -175,6 +180,9 @@ export function buildViewModel(input: ViewModelInput, fmt: { time(ms: number): s
     statusIcon: look.icon,
     statusClass: look.cls,
     lastRun: last === null ? null : `${t("view.lastRun")}: ${fmt.time(last.at)}`,
+    lastRunLabel: last === null ? null : t("view.lastRun"),
+    lastRunTime: last === null ? null : fmt.time(last.at),
+    showResult: last !== null && input.status !== "running",
     lastError: last !== null && !last.ok && last.error !== undefined ? t(KNOWN_ERRORS.has(last.error) ? (last.error as StringKey) : "notice.failed") : null,
     counters: last === null ? null : last.counts,
     counterRows: last === null ? [] : COUNTER_KEYS.map((key) => ({ key, label: t(`count.${key}`), value: last.counts[key] })),

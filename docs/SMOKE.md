@@ -39,17 +39,15 @@ Nachlauf 2026-10-29 gegen HEAD ad71616 (main.js md5 c4f18d456806ff81a362bf17b1fa
 - `Q5` Der Bestätigungsdialog bei einer nur im Vault veränderten Datei (H) trägt am „Run plan“-Knopf die Klasse `mod-destructive`, der Dialog des ersten Laufs (B2, nur neue Dateien) `mod-cta`.
 - `Q6` Der Einstellungs-Tab zeigt unter „Confirmation threshold“ den Text mit „deletes at least this many files, and at least a fifth“.
 
-## Beobachtungen, nicht behoben
+## Beobachtungen
 
-Bei 116 px Breite der Seitenleiste bricht das Statuswort mitten im Wort („confirmati/on“, `overflow-wrap: anywhere` an `.dmr-status-text`).
+Die ersten vier Beobachtungen sind im Code behoben (Stand 2026-10-31); ob die Layout-Wirkung stimmt, ist ungemessen und braucht Screenshots in der schmalen Seitenleiste.
 
-In den Konfliktzeilen sitzen Kästchen und Pfad nicht auf einer Grundlinie (das Kästchen steht höher), und die Notiz „Already in the vault …“ steht ohne Einzug darunter.
-
-Die Karte „Last run“ bleibt während eines Laufs sichtbar und zeigt den vorigen Lauf, das kann mit dem laufenden verwechselt werden.
-
-Die Zeitangabe in der Überschrift der Ergebniskarte („Last run: 10/28/2026, 12:06:39 PM“) bricht in der schmalen Seitenleiste um.
-
-Notices liegen oben rechts über der Aktionszeile und fangen dort einen Klick ab (Obsidian-Verhalten, der Treiber räumt sie vor jedem Klick weg).
+- Bei 116 px Breite der Seitenleiste brach das Statuswort mitten im Wort („confirmati/on“, `overflow-wrap: anywhere` an `.dmr-status-text`). Jetzt bricht die Zeile an Wortgrenzen um; ein Wort bricht erst, wenn es allein breiter ist als die Zeile.
+- In den Konfliktzeilen saßen Kästchen und Pfad nicht auf einer Grundlinie, und die Notiz „Already in the vault …“ stand ohne Einzug darunter. Die Zeile richtet sich jetzt an der Mitte aus, die Notiz unter einem Kästchen ist eingerückt.
+- Die Karte „Last run“ blieb während eines Laufs sichtbar und zeigte den vorigen Lauf. Sie ist jetzt während des Laufs ausgeblendet (die Statuszeile zeigt den Fortschritt).
+- Die Zeitangabe in der Überschrift der Ergebniskarte („Last run: 10/28/2026, 12:06:39 PM“) brach in der schmalen Seitenleiste um. Sie steht jetzt als Ganzes in einem eigenen Knoten und rutscht nur als Ganzes in die nächste Zeile.
+- Offen, kein Defekt: Notices liegen oben rechts über der Aktionszeile und fangen dort einen Klick ab (Obsidian-Verhalten, der Treiber räumt sie vor jedem Klick weg).
 
 ## Nicht gemessen und Grenzen
 

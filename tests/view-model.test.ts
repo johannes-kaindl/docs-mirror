@@ -61,6 +61,15 @@ describe("buildViewModel: letzter Lauf, Zähler, Fortschritt", () => {
     expect(vm({ last: null }).counterRows).toEqual([]);
   });
 
+  it("showResult: die Karte des letzten Laufs gilt nur, solange kein Lauf läuft; Beschriftung und Zeit einzeln", () => {
+    expect(vm().showResult).toBe(true);
+    expect(vm({ status: "waiting", waiting: true, plan: plan([]) }).showResult).toBe(true);
+    expect(vm({ status: "running" }).showResult).toBe(false);
+    expect(vm({ last: null }).showResult).toBe(false);
+    expect([vm().lastRunLabel, vm().lastRunTime]).toEqual(["Last run", "T42"]);
+    expect([vm({ last: null }).lastRunLabel, vm({ last: null }).lastRunTime]).toEqual([null, null]);
+  });
+
   it("Zähler stehen als Zeilen mit Beschriftung, ohne Nullzeilen nicht gefiltert (alle sieben)", () => {
     const m = vm();
     expect(m.counters).toEqual(COUNTS);

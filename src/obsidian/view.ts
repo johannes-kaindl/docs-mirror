@@ -147,12 +147,15 @@ export class DocsMirrorView extends ItemView {
       return;
     }
     if (vm.hasPlan) renderPlan(body, vm, this.overwrite, this.openState);
-    if (vm.lastRun !== null) this.renderResult(body, vm);
+    if (vm.showResult) this.renderResult(body, vm);
   }
 
   private renderResult(body: HTMLElement, vm: ViewModel): void {
     const card = body.createDiv({ cls: "dmr-card dmr-result" });
-    card.createEl("h3", { cls: "dmr-card-heading", text: vm.lastRun ?? "" });
+    // Beschriftung und Zeitangabe stehen in getrennten Knoten: die Zeitangabe bricht nur als Ganzes in die nächste Zeile.
+    const heading = card.createEl("h3", { cls: "dmr-card-heading" });
+    heading.createSpan({ cls: "dmr-last-label", text: `${vm.lastRunLabel ?? ""}: ` });
+    heading.createSpan({ cls: "dmr-last-time", text: vm.lastRunTime ?? "" });
     if (vm.lastError !== null) card.createDiv({ cls: "dmr-error", text: vm.lastError });
     const list = card.createDiv({ cls: "dmr-counters" });
     for (const row of vm.counterRows) {

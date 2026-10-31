@@ -86,6 +86,23 @@ describe("DocsMirrorView", () => {
     expect(calls).toEqual([["sync"]]);
   });
 
+  it("Kosmetik 3: während eines Laufs fehlt die Karte des letzten Laufs, danach ist sie wieder da", async () => {
+    const { view, root, set } = setup({ status: "running", progress: { done: 1, total: 9 } });
+    await view.onOpen();
+    expect(all(root(), ".dmr-result")).toHaveLength(0);
+    set({ status: "current", progress: null });
+    expect(all(root(), ".dmr-result")).toHaveLength(1);
+  });
+
+  it("Kosmetik 4: Beschriftung und Zeitangabe der Ergebniskarte stehen in getrennten Knoten", async () => {
+    const { view, root } = setup();
+    await view.onOpen();
+    const heading = all(all(root(), ".dmr-result")[0], "h3")[0];
+    expect(heading.textContent).toBe("Last run: T7");
+    expect(all(heading, ".dmr-last-time").map((e: any) => e.textContent)).toEqual(["T7"]);
+    expect(all(heading, ".dmr-last-label")[0].textContent).toBe("Last run: ");
+  });
+
   it("Status: Form (Icon), Text, Klasse und aria-label gesetzt", async () => {
     const { view, root } = setup({ status: "unreachable" });
     await view.onOpen();

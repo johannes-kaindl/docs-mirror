@@ -72,6 +72,13 @@ describe("renderPlan", () => {
     expect(all(root, "input")[0].getAttribute("aria-label")).toBe("Overwrite: a/c1.md");
   });
 
+  it("Kosmetik 2: in der Konfliktzeile folgen Kästchen, Pfad und Notiz in dieser Reihenfolge (die Einrückung der Notiz hängt daran)", () => {
+    const { root } = render([item("a/c.md", "conflict", { src })]);
+    const row = all(root, ".dmr-row")[0];
+    expect(row.children.map((c: any) => c.className.split(" ").filter((x: string) => ["dmr-overwrite", "dmr-path", "dmr-row-note"].includes(x))[0])).toEqual(["dmr-overwrite", "dmr-path", "dmr-row-note"]);
+    expect(row.children[2].textContent).toBe("Already in the vault and not created by this plugin.");
+  });
+
   it("Kästchen ankreuzen und abwählen pflegt die Auswahl", () => {
     const sel = { all: false, paths: new Set<string>() };
     const { root } = render(items, sel);

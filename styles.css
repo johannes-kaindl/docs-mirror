@@ -23,6 +23,7 @@
 /* Status-Indikator: Form (Icon) UND Text UND Farbe; die Farbe allein trägt nichts. */
 .dmr-status {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--size-4-2);
   flex: 0 0 auto;
@@ -30,7 +31,9 @@
   font-size: var(--font-ui-small);
 }
 .dmr-status-icon { display: inline-flex; align-items: center; }
-.dmr-status-text { overflow-wrap: anywhere; }
+/* Umbruch nur an Wortgrenzen: die Basis ist das längste Wort. Passt es nicht neben das Icon, rutscht der Text in die
+ * nächste Zeile; ein Wort bricht erst, wenn es allein breiter ist als die ganze Zeile. */
+.dmr-status-text { flex: 1 1 min-content; min-width: 0; overflow-wrap: break-word; }
 .dmr-status.is-ok { color: var(--text-success); }
 .dmr-status.is-error { color: var(--text-error); }
 .dmr-status.is-warning { color: var(--text-warning); }
@@ -59,6 +62,8 @@
   margin-bottom: var(--size-4-3);
 }
 .dmr-card-heading { margin: 0 0 var(--size-4-2); font-size: var(--font-ui-medium); }
+/* Die Zeitangabe bricht nie mitten in der Angabe: passt sie nicht neben die Beschriftung, steht sie in der nächsten Zeile. */
+.dmr-last-time { display: inline-block; white-space: nowrap; }
 .dmr-reason { color: var(--text-normal); font-size: var(--font-ui-small); margin-bottom: var(--size-4-1); }
 .dmr-note { color: var(--text-muted); font-size: var(--font-ui-small); margin-bottom: var(--size-4-1); }
 .dmr-error { color: var(--text-error); font-size: var(--font-ui-small); margin-bottom: var(--size-4-2); }
@@ -74,12 +79,15 @@
 .dmr-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
   gap: var(--size-4-1) var(--size-4-2);
   font-size: var(--font-ui-smaller);
 }
+.dmr-row .dmr-overwrite { margin: 0; }
 .dmr-path { overflow-wrap: anywhere; }
-.dmr-row-note { flex: 1 0 100%; color: var(--text-muted); }
+.dmr-row-note { flex: 1 1 100%; min-width: 0; color: var(--text-muted); }
+/* Steht die Notiz unter einem Kästchen, beginnt sie unter dem Pfad statt unter dem Kästchen. */
+.dmr-overwrite ~ .dmr-row-note { margin-left: calc(var(--checkbox-size) + var(--size-4-2)); }
 .dmr-more { color: var(--text-faint); font-size: var(--font-ui-smaller); margin-top: var(--size-4-1); }
 
 /* Zähler des letzten Laufs */
