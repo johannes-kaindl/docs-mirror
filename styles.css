@@ -92,7 +92,7 @@
 
 /* Zähler des letzten Laufs */
 .dmr-counters { display: flex; flex-direction: column; gap: var(--size-4-1); }
-.dmr-counter { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: var(--size-4-2); font-size: var(--font-ui-small); }
+.dmr-counter { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0 var(--size-4-2); font-size: var(--font-ui-small); }
 .dmr-counter-label { color: var(--text-muted); }
 
 /* Einstellungen: Hinweis unter einem Feld, Form (Text) trägt, die Farbe unterstützt. */
