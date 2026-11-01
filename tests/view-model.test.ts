@@ -98,6 +98,13 @@ describe("buildViewModel: letzter Lauf, Zähler, Fortschritt", () => {
     expect(vm({ status: "current", progress: { done: 3, total: 10 } }).progressText).toBeNull();
     expect(vm({ status: "running", progress: null }).progress).toBeNull();
   });
+
+  it("Fortschritt im Scan: Gesamtzahl unbekannt (null) → Text nennt die gelesenen Einträge", () => {
+    const m = vm({ status: "running", progress: { done: 1234, total: null } });
+    expect(m.progress).toEqual({ done: 1234, total: null });
+    expect(m.progressText).toBe("1234 entries read");
+    expect(vm({ status: "current", progress: { done: 5, total: null } }).progressText).toBeNull();
+  });
 });
 
 describe("buildViewModel: Primärknopf (Aktion, kein Toggle)", () => {

@@ -40,7 +40,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
   private last: RunInfo | null = null;
   private running = false;
   private confirming = false;
-  private progress: { done: number; total: number } | null = null;
+  private progress: { done: number; total: number | null } | null = null;
   private waitingReasons: ConfirmReason[] = [];
   private abort: AbortController | null = null;
   private runSource: ReturnType<typeof createSourcePort> | null = null;
@@ -214,7 +214,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
 
   /* ── Läufe ──────────────────────────────────────────────── */
 
-  private async perform(mode: "manual" | "startup", start: (signal: AbortSignal, onProgress: (done: number, total: number) => void) => Promise<RunOutcome>): Promise<void> {
+  private async perform(mode: "manual" | "startup", start: (signal: AbortSignal, onProgress: (done: number, total: number | null) => void) => Promise<RunOutcome>): Promise<void> {
     if (this.unloaded) return;
     if (!Platform.isDesktopApp) {
       if (mode === "manual") new Notice(t("notice.desktopOnly"));

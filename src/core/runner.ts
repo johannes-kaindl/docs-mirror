@@ -29,6 +29,8 @@ export interface RunnerDeps {
   vaultBasePath?: () => string | null;
   /** Löst Wurzel und Vault-Basispfad vor dem Vergleich auf (Symlinks); der Host liefert sie über das Dateisystem. Fehlt sie, gelten die Pfade als Text. */
   resolvePaths?: (root: string, vaultBase: string | null) => { root: string; vaultBase: string | null };
+  /** Schrittweite des kooperativen Zeittors im Scan (Standard 250 ms); `0` = jede Runde. Nur für Tests. */
+  paceEveryMs?: number;
 }
 
 export type RunOutcome =
@@ -37,14 +39,16 @@ export type RunOutcome =
   | { kind: "waiting"; plan: Plan; reasons: ConfirmReason[] }
   | { kind: "done"; info: RunInfo; aborted: boolean };
 
+/** `total` ist `null`, solange der Scan läuft: gezählt werden gelesene Einträge, die Gesamtzahl steht erst nach dem Plan fest. */
+export type Progress = (done: number, total: number | null) => void;
+
 export interface Runner {
-  run(mode: "manual" | "startup", signal: AbortSignal, onProgress?: (done: number, total: number) => void): Promise<RunOutcome>;
-  execute(overwrite: ReadonlySet<string> | "all", signal: AbortSignal, onProgress?: (done: number, total: number) => void): Promise<RunOutcome>;
+  run(mode: "manual" | "startup", signal: AbortSignal, onProgress?: Progress): Promise<RunOutcome>;
+  execute(overwrite: ReadonlySet<string> | "all", signal: AbortSignal, onProgress?: Progress): Promise<RunOutcome>;
   pending(): Plan | null;
   isBusy(): boolean;
 }
 
-type Progress = (done: number, total: number) => void;
 type Loaded = Awaited<ReturnType<DeviceState["load"]>>;
 
 const SAVE_EVERY = 50;
@@ -85,14 +89,17 @@ export function createRunner(deps: RunnerDeps): Runner {
   };
 
   /** Scan, Plan, Sicherungen. Wirft nie (auch nicht, wenn das Speichern wirft); Fehler und Sperren werden gespeichert (`last`), das Manifest bleibt unberührt. */
-  async function prepare(load: Loaded, root: string, skipPaths: string[], signal: AbortSignal): Promise<Prepared> {
+  async function prepare(load: Loaded, root: string, skipPaths: string[], signal: AbortSignal, onProgress: Progress | undefined): Promise<Prepared> {
     const settings = deps.settings();
     const fingerprint = settingsFingerprint(settings, root);
     if (signal.aborted) return { kind: "aborted" };
     try {
-      const pacer = createCooperativeYield({ yieldToUi: deps.yieldToUi });
+      const pacer = createCooperativeYield({ yieldToUi: deps.yieldToUi, everyMs: deps.paceEveryMs });
+      let seen = 0;
       const scan = await scanSource(deps.source, settings, async () => {
-        await pacer.tick();
+        seen++;
+        // Der Scan meldet gelesene Einträge, damit ein Stillstand von langer Arbeit unterscheidbar bleibt (Befund 2026-10-31).
+        await pacer.tick(() => onProgress?.(seen, null));
         if (signal.aborted) throw ABORTED;
       }, { skipPaths });
       const manifest = load.manifest ?? {};
@@ -159,7 +166,7 @@ export function createRunner(deps: RunnerDeps): Runner {
     const resolved = deps.resolvePaths?.(rootCheck.root, rawBase) ?? { root: rootCheck.root, vaultBase: rawBase };
     const where = locateVault(resolved.root, resolved.vaultBase);
     if (where.kind === "same") return { kind: "blocked", reason: "vault-is-root" };
-    const prep = await prepare(load, rootCheck.root, where.kind === "below" ? [where.rel] : [], signal);
+    const prep = await prepare(load, rootCheck.root, where.kind === "below" ? [where.rel] : [], signal, onProgress);
     if (prep.kind === "blocked") return { kind: "blocked", reason: prep.reason };
     if (prep.kind === "aborted") {
       // Vor dem Scan abgebrochen: nichts gelesen, nichts gespeichert.

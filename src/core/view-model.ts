@@ -60,7 +60,7 @@ export interface ViewModel {
   primaryLabel: string;
   /** Zweiter Knopf neben „Plan ausführen“: neu planen. */
   secondary: "sync" | null;
-  progress: { done: number; total: number } | null;
+  progress: { done: number; total: number | null } | null;
   progressText: string | null;
 }
 
@@ -68,7 +68,7 @@ export interface ViewModelInput {
   status: RunStatus;
   last: RunInfo | null;
   plan: Plan | null;
-  progress: { done: number; total: number } | null;
+  progress: { done: number; total: number | null } | null;
   waiting: boolean;
   reasons?: ConfirmReason[];
 }
@@ -195,6 +195,6 @@ export function buildViewModel(input: ViewModelInput, fmt: { time(ms: number): s
     primaryLabel: t(act.label),
     secondary: act.secondary,
     progress,
-    progressText: progress === null ? null : t("view.progress", { done: progress.done, total: progress.total }),
+    progressText: progress === null ? null : progress.total === null ? t("view.scanning", { done: progress.done }) : t("view.progress", { done: progress.done, total: progress.total }),
   };
 }

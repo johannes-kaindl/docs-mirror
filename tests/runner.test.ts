@@ -49,7 +49,7 @@ interface Ctx {
   /** Ersatz für die Auflösung über das Dateisystem (Symlinks); fehlt er, bleiben die Pfade Text. */
   resolve?: (root: string, vaultBase: string | null) => { root: string; vaultBase: string | null };
 }
-function ctx(over: { settings?: Partial<DocsMirrorSettings>; root?: string } = {}): Ctx {
+function ctx(over: { settings?: Partial<DocsMirrorSettings>; root?: string; pace?: number } = {}): Ctx {
   const c = {} as Ctx;
   c.state = memState(over.root);
   c.vault = fakeVault();
@@ -73,6 +73,7 @@ function ctx(over: { settings?: Partial<DocsMirrorSettings>; root?: string } = {
     settings: () => c.settings,
     yieldToUi: () => Promise.resolve(),
     now: () => 5000,
+    paceEveryMs: over.pace,
     vaultBasePath: () => c.vaultBase,
     resolvePaths: (root, vaultBase) => (c.resolve ? c.resolve(root, vaultBase) : { root, vaultBase }),
   };
@@ -91,6 +92,29 @@ async function mirrored(c: Ctx): Promise<void> {
 const ops = (c: Ctx): string[] => c.vault.calls.ops.filter((o) => o !== "clearTemp");
 
 describe("createRunner", () => {
+  it("Befund 2026-10-31: der Scan meldet gelesene Einträge mit total null, danach zählt das Schreiben mit endlicher Gesamtzahl", async () => {
+    const c = ctx({ pace: 0 });
+    const scan: [number, number | null][] = [];
+    const w = await c.runner.run("manual", sig(), (d, t) => scan.push([d, t]));
+    expect(w.kind).toBe("waiting");
+    expect(scan.length).toBeGreaterThan(0);
+    expect(scan.every(([, t]) => t === null)).toBe(true);
+    expect(scan.map(([d]) => d)).toEqual([...scan.map(([d]) => d)].sort((a, b) => a - b));
+    expect(scan.at(-1)![0]).toBe(7);
+    const run: [number, number | null][] = [];
+    const d = await c.runner.execute(new Set(), sig(), (n, t) => run.push([n, t]));
+    expect(d.kind).toBe("done");
+    expect(run.some(([, t]) => t === null)).toBe(true);
+    expect(run.at(-1)).toEqual([3, 3]);
+  });
+
+  it("Scan-Fortschritt kommt nur im Takt des Zeittors (Standard 250 ms), nicht je Eintrag", async () => {
+    const c = ctx();
+    const scan: [number, number | null][] = [];
+    await c.runner.run("manual", sig(), (d, t) => scan.push([d, t]));
+    expect(scan.filter(([, t]) => t === null)).toEqual([]);
+  });
+
   it("zweiter run während des ersten → busy, schreibt nicht, und die Sperre wird danach frei", async () => {
     const c = ctx();
     let release!: () => void;

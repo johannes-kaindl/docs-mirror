@@ -18,7 +18,7 @@ First version. Not released yet.
 - Safeguards: nothing is deleted when the source root is missing, unreadable or yields no files; the vault is left out of the scan when it lies below the source root (symbolic links are resolved), and a run whose source root is the vault itself is refused.
 - Writes go through temporary files that are read back and compared with the source bytes before they replace the target; a source file that changes during the run is reported as an error and skipped. Cancelling finishes the file being written and keeps the record of what was written.
 - Start run when the vault loads (off by default): it begins 2,000 ms after the workspace is ready, opens no dialog, and waits in the sidebar with a notice if it needs confirmation.
-- Sidebar with a status line (icon and text, never color alone), progress, a cancel button and a card for the last run with its counters; the card is hidden while a run is in progress.
+- Sidebar with a status line (icon and text, never color alone), progress (entries read while the source is scanned, then files written), a cancel button and a card for the last run with its counters; the card is hidden while a run is in progress.
 - Settings for the source root (per device), folder patterns, excluded names, file types, largest file, total size limit, confirmation threshold, dot folders and the start run.
 - Commands "Open Docs Mirror", "Sync docs now" and "Show sync plan" (opens the sidebar with a plan that is already waiting), and a ribbon icon.
 - Interface texts in English (canonical) and German.

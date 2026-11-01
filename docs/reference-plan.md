@@ -62,7 +62,7 @@ If the vault lies below the source root, the scan leaves the vault out, so the m
 
 ## Counters of the last run
 
-The **Last run** (Letzter Lauf) card shows the time and these counters. The card is hidden while a run is in progress; the status line shows the progress instead.
+The **Last run** (Letzter Lauf) card shows the time and these counters. The card is hidden while a run is in progress; the status line shows the progress instead: "entries read" while the source folders are scanned (the total is not known yet), then "files of total" while files are written. If the first number stops growing, the scan is stuck, not slow.
 
 | Counter | Counts |
 |---|---|
