@@ -21,6 +21,14 @@ This is the index of the user documentation, ordered after the Diátaxis scheme:
 
 - [Why one way, why a record, what Docs Mirror deletes](explanation-how-it-works.md) explains why changes flow only from the repository into the vault, what the per-device record is for, which files the plugin deletes and which it never touches, the safeguards, and what has been measured and what has not.
 
+## Troubleshooting
+
+Something does not work? [Commands, buttons and messages](reference-commands.md#messages) lists every notice with its cause and what to do. The [sync plan reference](reference-plan.md) explains the cases in which a run refuses, and [What does a conflict mean](how-to-conflicts.md) goes through each kind of conflict.
+
+## Getting help
+
+Still stuck? [Open an issue](https://github.com/johannes-kaindl/docs-mirror/issues) with your Obsidian version, the plugin version (Settings → Community plugins) and what you expected to happen.
+
 ## Measurements for maintainers
 
 - [SMOKE.md](SMOKE.md) holds the GUI smoke test against a running Obsidian (German).
