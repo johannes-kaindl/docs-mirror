@@ -2,7 +2,13 @@
 
 > 🇬🇧 English · [🇩🇪 Deutsch](README.de.md)
 
-Docs Mirror copies the `docs` folders of many repositories, one way, into a small Obsidian vault. The repositories stay the source of truth. The vault is a reading view: it is never written back into a repository.
+**Copies the `docs` folders of many repositories, one way, into a small Obsidian vault that you can read on desktop and phone.**
+
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-DOCS)
+![Platform](https://img.shields.io/badge/platform-Obsidian%201.11.4%2B%20%C2%B7%20desktop%20only-7c3aed)
+
+The repositories stay the source of truth. The vault is a reading view: it is never written back into a repository.
 
 Version 0.1.0, not yet released. The plugin is desktop-only because it reads the source folders with Node.js. On your phone, read the vault through Obsidian Sync; the plugin does not run there.
 
@@ -19,6 +25,13 @@ Version 0.1.0, not yet released. The plugin is desktop-only because it reads the
 - Skips symbolic links, hidden (dot) folders unless you include them, files above the size limit, and file types you did not list.
 - Writes each file through a temporary file, so no file is ever left half-written; an interrupted replacement can leave a file missing until the next run restores it.
 
+## Requirements
+
+- **Obsidian 1.11.4 or later**, desktop only (`isDesktopOnly: true` in `manifest.json`). The plugin reads the source folders with Node.js, so it does not load on mobile.
+- A **source root**: a folder on the same computer that contains your repositories. You enter its absolute path in the settings.
+- A **separate, empty vault** for the mirror. Do not use the workspace itself as the vault.
+- For reading on the phone: Obsidian Sync (or another way to sync the vault). The plugin itself does not sync.
+
 ## Installation
 
 The plugin is not yet in the community plugin store.
@@ -29,23 +42,46 @@ To build it from source, run `npm install` and then `npm run build`.
 
 For a first setup, follow [docs/getting-started.md](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/getting-started.md). The rest of the documentation is indexed in [docs/README.md](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/README.md).
 
-## Settings
+## Usage
 
-- **Source root:** the absolute path of the folder whose repositories are mirrored. It is stored per device and must be set on each device.
-- **Folder patterns:** one pattern per line, relative to the source root. Matching folders are mirrored with everything below them. See [Adjust the folder patterns](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/how-to-folder-patterns.md).
-- **Excluded names:** folder and file names that are never mirrored, separated by commas. Defaults: `node_modules`, `.git`, `dist`, `build`, `__pycache__`, `.venv`.
-- **File types:** extensions that are mirrored, separated by commas. Defaults: `md`, `canvas`, `base`, `png`, `jpg`, `jpeg`, `gif`, `svg`, `webp`, `pdf`.
-- **Largest file:** files above this size are skipped. Default: 5 MB.
-- **Total size limit:** a run that would leave more data in the vault than this asks for confirmation first. Default: 1 GB.
-- **Confirmation threshold:** a run that deletes at least this many files, and at least a fifth of the mirrored files, asks for confirmation first. Default: 20 files. The one-fifth share is fixed and not adjustable.
-- **Dot folders:** include folders whose names start with a dot. Off by default.
-- **Sync when the vault starts:** run a sync two seconds after the workspace is ready. Off by default. If the run needs confirmation, it waits in the sidebar and shows a notice instead of a dialog. The start run is skipped silently if a run, a confirmation or a waiting plan already exists. Every setting in detail: [Settings reference](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/reference-settings.md).
+1. Enable **Docs Mirror** in Settings → Community plugins.
+2. Open the plugin's settings and enter the absolute path of your source root under **Source root**. Until it is set, the sidebar shows **Not set up**.
+3. Open the sidebar with the ribbon icon or the command **Open Docs Mirror**, then click **Sync now**.
+4. The first run never writes directly. The sidebar shows the sync plan; check it, tick any conflict you want to overwrite, click **Run plan** and confirm in the dialog.
+5. Later runs go through without a question unless one of the five reasons above applies. If a run waits, it stays in the sidebar until you confirm or cancel it.
 
-## Commands
+Step by step with the reasons behind it: [Getting started](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/getting-started.md).
+
+### Commands
 
 - **Open Docs Mirror:** opens the sidebar. A ribbon icon does the same.
 - **Sync docs now:** runs a sync. The sidebar button does the same.
 - **Show sync plan:** opens the sidebar with a plan that is waiting for confirmation. If no plan is waiting, it says so. All commands, buttons and messages: [docs/reference-commands.md](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/reference-commands.md).
+
+## Configuration
+
+All settings are in Settings → Docs Mirror. The source root is stored per device and must be set on each device; the other settings are saved in the plugin's `data.json`.
+
+- **Source root:** the absolute path of the folder whose repositories are mirrored. `~` and relative paths are refused.
+- **Folder patterns:** one pattern per line, relative to the source root. Matching folders are mirrored with everything below them. See [Adjust the folder patterns](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/how-to-folder-patterns.md).
+- **Excluded names:** folder and file names that are never mirrored, separated by commas. Defaults: `node_modules`, `.git`, `dist`, `build`, `__pycache__`, `.venv`.
+- **File types:** extensions that are mirrored, separated by commas. Defaults: `md`, `canvas`, `base`, `png`, `jpg`, `jpeg`, `gif`, `svg`, `webp`, `pdf`.
+- **Largest file:** files above this size are skipped. Given in megabytes. Default: 5 MB.
+- **Total size limit:** a run that would leave more data in the vault than this asks for confirmation first. Given in megabytes. Default: 1024 MB (1 GB).
+- **Confirmation threshold:** a run that deletes at least this many files, and at least a fifth of the mirrored files, asks for confirmation first. Default: 20 files. The one-fifth share is fixed and not adjustable.
+- **Dot folders:** include folders whose names start with a dot. Off by default.
+- **Sync when the vault starts:** run a sync two seconds after the workspace is ready. Off by default. If the run needs confirmation, it waits in the sidebar and shows a notice instead of a dialog. The start run is skipped silently if a run, a confirmation or a waiting plan already exists. Every setting in detail: [Settings reference](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/reference-settings.md).
+
+## How it works
+
+A run has four steps. The plugin reads the source only; it writes only into the vault, only through Obsidian's vault adapter.
+
+1. **Scan.** It walks the source root with Node.js (`readdir`, `lstat`, read-only), keeps the folders that match the folder patterns and collects their files. Symbolic links, excluded names, unlisted file types and files above the size limit are skipped. If the vault lies below the source root, it is left out of the scan.
+2. **Plan.** It compares the scan with the vault and with the record of files it mirrored earlier (kept per device in Obsidian's local storage, never in the vault). Each file becomes new, changed, unchanged, to delete, conflict, edited in the vault, or vault only.
+3. **Guards.** A missing or empty source blocks the run, so a wrong path cannot empty the vault. Five reasons make the run wait for your confirmation in the sidebar: the first run, many deletions, changed settings, the size limit, conflicts.
+4. **Apply.** Deletions come first. Each file is then written to a temporary file and moved into place, and the record is saved in steps, so an abort keeps what was already done.
+
+Why changes flow only one way, what the record is for and what the plugin never touches: [docs/explanation-how-it-works.md](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/explanation-how-it-works.md). The module layout is in `AGENTS.md`.
 
 ## Limits
 
@@ -69,3 +105,14 @@ New here? Start with [Getting started](https://github.com/johannes-kaindl/docs-m
 ## Status
 
 Version 0.1.0. Screenshots and the store listing are still to come.
+
+## Contributing
+
+Issues and pull requests are welcome. Run `npm run gate` before a commit; see [`CONTRIBUTING.md`](CONTRIBUTING.md) and [`AGENTS.md`](AGENTS.md).
+
+## License
+
+- **Code:** AGPL-3.0-or-later ([`LICENSE`](LICENSE); dual-license option in [`LICENSING.md`](LICENSING.md)).
+- **Docs/text:** CC BY-SA 4.0 ([`LICENSE-DOCS`](LICENSE-DOCS)).
+
+Copyright © 2026 Johannes Kaindl.

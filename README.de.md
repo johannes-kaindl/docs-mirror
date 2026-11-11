@@ -2,7 +2,13 @@
 
 > [🇬🇧 English](README.md) · 🇩🇪 Deutsch
 
-Docs Mirror kopiert die `docs`-Ordner vieler Repositories einseitig in einen kleinen Obsidian-Vault. Die Repositories bleiben die Quelle der Wahrheit. Der Vault ist eine Leseansicht: Er wird nie zurück in ein Repository geschrieben.
+**Kopiert die `docs`-Ordner vieler Repositories einseitig in einen kleinen Obsidian-Vault, den du auf Desktop und Telefon lesen kannst.**
+
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](LICENSE)
+[![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-DOCS)
+![Platform](https://img.shields.io/badge/platform-Obsidian%201.11.4%2B%20%C2%B7%20desktop%20only-7c3aed)
+
+Die Repositories bleiben die Quelle der Wahrheit. Der Vault ist eine Leseansicht: Er wird nie zurück in ein Repository geschrieben.
 
 Version 0.1.0, noch nicht veröffentlicht. Das Plugin läuft nur auf dem Desktop, weil es die Quellordner mit Node.js liest. Auf dem Telefon liest du den Vault über Obsidian Sync; dort läuft das Plugin nicht.
 
@@ -19,6 +25,13 @@ Version 0.1.0, noch nicht veröffentlicht. Das Plugin läuft nur auf dem Desktop
 - Überspringt symbolische Links, Punkt-Ordner (wenn du sie nicht einschließt), Dateien über der Größengrenze und Dateitypen, die du nicht aufgenommen hast.
 - Schreibt jede Datei über eine Temp-Datei; keine Datei bleibt halb geschrieben zurück, eine unterbrochene Ersetzung kann aber eine Datei fehlen lassen, bis der nächste Lauf sie wiederherstellt.
 
+## Voraussetzungen
+
+- **Obsidian 1.11.4 oder neuer**, nur Desktop (`isDesktopOnly: true` in `manifest.json`). Das Plugin liest die Quellordner mit Node.js und lädt deshalb nicht auf dem Telefon.
+- Ein **Quellordner**: ein Ordner auf demselben Rechner, der deine Repositories enthält. Seinen absoluten Pfad trägst du in den Einstellungen ein.
+- Ein **eigener, leerer Vault** für den Spiegel. Nimm nicht den Arbeitsbereich selbst als Vault.
+- Zum Lesen auf dem Telefon: Obsidian Sync (oder ein anderer Weg, den Vault zu synchronisieren). Das Plugin synchronisiert nicht selbst.
+
 ## Installation
 
 Das Plugin ist noch nicht im Community-Plugin-Store.
@@ -29,23 +42,46 @@ Zum Bauen aus dem Quellcode führst du `npm install` und danach `npm run build` 
 
 Für die Ersteinrichtung folge [docs/getting-started.md](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/getting-started.md). Die übrige Dokumentation (englisch) steht im Verzeichnis [docs/README.md](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/README.md).
 
-## Einstellungen
+## Verwendung
 
-- **Quellordner:** der absolute Pfad des Ordners, dessen Repositories gespiegelt werden. Er wird gerätelokal gespeichert und muss auf jedem Gerät gesetzt werden.
-- **Ordnermuster:** ein Muster je Zeile, relativ zum Quellordner. Passende Ordner werden mit allem darunter gespiegelt. Siehe [Adjust the folder patterns](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/how-to-folder-patterns.md) (englisch).
-- **Ausgeschlossene Namen:** Ordner- und Dateinamen, die nie gespiegelt werden, durch Komma getrennt. Standard: `node_modules`, `.git`, `dist`, `build`, `__pycache__`, `.venv`.
-- **Dateitypen:** Dateiendungen, die gespiegelt werden, durch Komma getrennt. Standard: `md`, `canvas`, `base`, `png`, `jpg`, `jpeg`, `gif`, `svg`, `webp`, `pdf`.
-- **Größte Datei:** Dateien über dieser Größe werden übersprungen. Standard: 5 MB.
-- **Gesamtgrößen-Grenze:** ein Lauf, der den gespiegelten Vault über diese Größe brächte, fragt vorher nach. Standard: 1 GB.
-- **Schwelle für Bestätigung:** ein Lauf, der mindestens so viele Dateien löscht und dabei mindestens ein Fünftel der gespiegelten Dateien trifft, fragt vorher nach. Standard: 20 Dateien. Der Fünftel-Anteil ist fest und nicht einstellbar.
-- **Punkt-Ordner:** Ordner einbeziehen, deren Name mit einem Punkt beginnt. Standardmäßig aus.
-- **Beim Vault-Start synchronisieren:** zwei Sekunden nach dem Laden des Arbeitsbereichs einen Lauf starten. Standardmäßig aus. Braucht der Lauf eine Bestätigung, wartet er in der Seitenleiste und zeigt eine Mitteilung statt eines Fensters. Ist schon ein Lauf, eine Bestätigung oder ein wartender Plan vorhanden, entfällt der Startlauf still. Jede Einstellung im Einzelnen (englisch): [Settings reference](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/reference-settings.md).
+1. Aktiviere **Docs Mirror** unter Einstellungen → Community-Plugins.
+2. Öffne die Einstellungen des Plugins und trage unter **Quellordner** den absoluten Pfad deines Quellordners ein. Solange er fehlt, zeigt die Seitenleiste **Nicht eingerichtet**.
+3. Öffne die Seitenleiste über das Ribbon-Symbol oder den Befehl **Docs Mirror öffnen** und klicke **Jetzt synchronisieren**.
+4. Der erste Lauf schreibt nie direkt. Die Seitenleiste zeigt den Sync-Plan; prüfe ihn, kreuze Konflikte an, die du überschreiben willst, klicke **Plan ausführen** und bestätige im Fenster.
+5. Spätere Läufe gehen ohne Rückfrage durch, solange keiner der fünf Gründe oben zutrifft. Wartet ein Lauf, bleibt er in der Seitenleiste, bis du ihn bestätigst oder abbrichst.
 
-## Befehle
+Schritt für Schritt mit den Gründen dahinter (englisch): [Getting started](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/getting-started.md).
+
+### Befehle
 
 - **Docs Mirror öffnen:** öffnet die Seitenleiste. Das Ribbon-Symbol tut dasselbe.
 - **Docs jetzt synchronisieren:** startet einen Lauf. Der Knopf in der Seitenleiste tut dasselbe.
 - **Sync-Plan anzeigen:** öffnet die Seitenleiste mit dem Plan, der auf Bestätigung wartet. Wartet kein Plan, sagt es das. Alle Befehle, Knöpfe und Meldungen (englisch): [docs/reference-commands.md](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/reference-commands.md).
+
+## Konfiguration
+
+Alle Einstellungen stehen unter Einstellungen → Docs Mirror. Der Quellordner wird gerätelokal gespeichert und muss auf jedem Gerät gesetzt werden; die übrigen Einstellungen liegen in der `data.json` des Plugins.
+
+- **Quellordner:** der absolute Pfad des Ordners, dessen Repositories gespiegelt werden. `~` und relative Pfade werden abgelehnt.
+- **Ordnermuster:** ein Muster je Zeile, relativ zum Quellordner. Passende Ordner werden mit allem darunter gespiegelt. Siehe [Adjust the folder patterns](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/how-to-folder-patterns.md) (englisch).
+- **Ausgeschlossene Namen:** Ordner- und Dateinamen, die nie gespiegelt werden, durch Komma getrennt. Standard: `node_modules`, `.git`, `dist`, `build`, `__pycache__`, `.venv`.
+- **Dateitypen:** Dateiendungen, die gespiegelt werden, durch Komma getrennt. Standard: `md`, `canvas`, `base`, `png`, `jpg`, `jpeg`, `gif`, `svg`, `webp`, `pdf`.
+- **Größte Datei:** Dateien über dieser Größe werden übersprungen. Angabe in Megabyte. Standard: 5 MB.
+- **Gesamtgrößen-Grenze:** ein Lauf, der den gespiegelten Vault über diese Größe brächte, fragt vorher nach. Angabe in Megabyte. Standard: 1024 MB (1 GB).
+- **Schwelle für Bestätigung:** ein Lauf, der mindestens so viele Dateien löscht und dabei mindestens ein Fünftel der gespiegelten Dateien trifft, fragt vorher nach. Standard: 20 Dateien. Der Fünftel-Anteil ist fest und nicht einstellbar.
+- **Punkt-Ordner:** Ordner einbeziehen, deren Name mit einem Punkt beginnt. Standardmäßig aus.
+- **Beim Vault-Start synchronisieren:** zwei Sekunden nach dem Laden des Arbeitsbereichs einen Lauf starten. Standardmäßig aus. Braucht der Lauf eine Bestätigung, wartet er in der Seitenleiste und zeigt eine Mitteilung statt eines Fensters. Ist schon ein Lauf, eine Bestätigung oder ein wartender Plan vorhanden, entfällt der Startlauf still. Jede Einstellung im Einzelnen (englisch): [Settings reference](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/reference-settings.md).
+
+## Funktionsweise
+
+Ein Lauf hat vier Schritte. Das Plugin liest die Quelle nur; es schreibt nur in den Vault, und zwar nur über den Vault-Adapter von Obsidian.
+
+1. **Scan.** Es geht mit Node.js (`readdir`, `lstat`, nur lesend) durch den Quellordner, behält die Ordner, die einem Ordnermuster entsprechen, und sammelt ihre Dateien. Symbolische Links, ausgeschlossene Namen, nicht aufgenommene Dateitypen und Dateien über der Größengrenze fallen heraus. Liegt der Vault unter dem Quellordner, bleibt er außerhalb des Scans.
+2. **Plan.** Es vergleicht den Scan mit dem Vault und mit der Liste der Dateien, die es früher gespiegelt hat (pro Gerät im lokalen Speicher von Obsidian, nie im Vault). Jede Datei wird neu, geändert, unverändert, zu löschen, Konflikt, im Vault verändert oder nur im Vault.
+3. **Schutz.** Eine fehlende oder leere Quelle blockiert den Lauf, damit ein falscher Pfad den Vault nicht leert. Fünf Gründe lassen den Lauf in der Seitenleiste auf deine Bestätigung warten: der erste Lauf, viele Löschungen, geänderte Einstellungen, die Größengrenze, Konflikte.
+4. **Ausführen.** Zuerst die Löschungen. Jede Datei wird dann in eine Temp-Datei geschrieben und an ihren Platz verschoben, und die Liste wird schrittweise gespeichert, sodass ein Abbruch behält, was schon erledigt ist.
+
+Warum Änderungen nur in eine Richtung fließen, wofür die Liste da ist und was das Plugin nie anfasst (englisch): [docs/explanation-how-it-works.md](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/explanation-how-it-works.md). Den Modulaufbau beschreibt die `AGENTS.md`.
 
 ## Grenzen
 
@@ -69,3 +105,14 @@ Neu hier? Beginne mit [Getting started](https://github.com/johannes-kaindl/docs-
 ## Stand
 
 Version 0.1.0. Screenshots und der Store-Eintrag folgen noch.
+
+## Mitwirken
+
+Issues und Pull Requests sind willkommen. Führe vor einem Commit `npm run gate` aus; siehe [`CONTRIBUTING.md`](CONTRIBUTING.md) und [`AGENTS.md`](AGENTS.md).
+
+## Lizenz
+
+- **Code:** AGPL-3.0-or-later ([`LICENSE`](LICENSE); Dual-License-Option in [`LICENSING.md`](LICENSING.md)).
+- **Doku/Text:** CC BY-SA 4.0 ([`LICENSE-DOCS`](LICENSE-DOCS)).
+
+Copyright © 2026 Johannes Kaindl.
