@@ -12,7 +12,7 @@
 
 The repositories stay the source of truth. The vault is a reading view: it is never written back into a repository.
 
-Version 0.1.0, not yet released. The plugin is desktop-only because it reads the source folders with Node.js. On your phone, read the vault through Obsidian Sync; the plugin does not run there.
+Version 0.1.0. The plugin is desktop-only because it reads the source folders with Node.js. On your phone, read the vault through Obsidian Sync; the plugin does not run there.
 
 ## What it does
 
@@ -36,9 +36,9 @@ Version 0.1.0, not yet released. The plugin is desktop-only because it reads the
 
 ## Installation
 
-The plugin is not yet in the community plugin store.
+The plugin is not yet listed in the community plugin store; the store listing is pending.
 
-To install it by hand, copy `main.js`, `manifest.json` and `styles.css` into `<vault>/.obsidian/plugins/docs-mirror/` and enable the plugin in the community plugins settings.
+To install it by hand, download `main.js`, `manifest.json` and `styles.css` from the [latest release](https://github.com/johannes-kaindl/docs-mirror/releases/latest), copy them into `<vault>/.obsidian/plugins/docs-mirror/` and enable the plugin in the community plugins settings.
 
 To build it from source, run `npm install` and then `npm run build`.
 
@@ -114,7 +114,7 @@ New here? Start with [Getting started](https://github.com/johannes-kaindl/docs-m
 
 ## Status
 
-Version 0.1.0. Screenshots and the store listing are still to come.
+Version 0.1.0, the first release. The store listing is pending.
 
 ## Contributing
 

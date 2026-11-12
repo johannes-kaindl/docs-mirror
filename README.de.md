@@ -12,7 +12,7 @@
 
 Die Repositories bleiben die Quelle der Wahrheit. Der Vault ist eine Leseansicht: Er wird nie zurück in ein Repository geschrieben.
 
-Version 0.1.0, noch nicht veröffentlicht. Das Plugin läuft nur auf dem Desktop, weil es die Quellordner mit Node.js liest. Auf dem Telefon liest du den Vault über Obsidian Sync; dort läuft das Plugin nicht.
+Version 0.1.0. Das Plugin läuft nur auf dem Desktop, weil es die Quellordner mit Node.js liest. Auf dem Telefon liest du den Vault über Obsidian Sync; dort läuft das Plugin nicht.
 
 ## Was es tut
 
@@ -36,9 +36,9 @@ Version 0.1.0, noch nicht veröffentlicht. Das Plugin läuft nur auf dem Desktop
 
 ## Installation
 
-Das Plugin ist noch nicht im Community-Plugin-Store.
+Das Plugin steht noch nicht im Community-Plugin-Store; der Store-Eintrag ist in Vorbereitung.
 
-Für eine manuelle Installation kopierst du `main.js`, `manifest.json` und `styles.css` nach `<Vault>/.obsidian/plugins/docs-mirror/` und aktivierst das Plugin in den Community-Plugins.
+Für eine manuelle Installation lädst du `main.js`, `manifest.json` und `styles.css` aus dem [neuesten Release](https://github.com/johannes-kaindl/docs-mirror/releases/latest) herunter, kopierst sie nach `<Vault>/.obsidian/plugins/docs-mirror/` und aktivierst das Plugin in den Community-Plugins.
 
 Zum Bauen aus dem Quellcode führst du `npm install` und danach `npm run build` aus.
 
@@ -114,7 +114,7 @@ Neu hier? Beginne mit [Getting started](https://github.com/johannes-kaindl/docs-
 
 ## Stand
 
-Version 0.1.0. Screenshots und der Store-Eintrag folgen noch.
+Version 0.1.0, das erste Release. Der Store-Eintrag ist in Vorbereitung.
 
 ## Mitwirken
 

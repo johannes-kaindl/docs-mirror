@@ -2,9 +2,9 @@
 
 All notable changes to this project are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html) (without a `v` prefix).
 
-## [0.1.0] - Unreleased
+## [Unreleased]
 
-First version. Not released yet.
+First version.
 
 ### Added
 
@@ -23,4 +23,5 @@ First version. Not released yet.
 - Commands "Open Docs Mirror", "Sync docs now" and "Show sync plan" (opens the sidebar with a plan that is already waiting), and a ribbon icon.
 - Interface texts in English (canonical) and German.
 - Documentation after Diátaxis: getting started, how-to guides for folder patterns and conflicts, references for settings, plan and commands, and an explanation of the one-way design, the record and the safeguards, indexed in `docs/README.md`.
+- Pauses of the scan and write loops run over a message channel instead of a timer, so a window whose timers are throttled cannot turn a run into hours of waiting (measured on the real source with 127,177 entries: 11,559 entries in 20 seconds with a timer pause of 250 ms, the whole scan in 2.4 seconds with the channel).
 - Desktop only; the plugin reads the source with Node.js. Measured so far: Obsidian 1.15.0 on macOS; Windows, Linux and mobile are not measured.
