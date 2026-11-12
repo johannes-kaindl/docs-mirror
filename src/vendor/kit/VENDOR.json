@@ -2,5 +2,6 @@
   "source": "code-kit",
   "version": "0.44.0",
   "sha": "ba02b6b",
-  "vendored": "settings.ts, i18n.ts, ignore.ts, sha256.ts, cooperative-yield.ts, busy-guard.ts, format-bytes.ts, rel-path.ts, fold-case.ts, split-list.ts"
+  "vendored": "settings.ts, i18n.ts, ignore.ts, sha256.ts, cooperative-yield.ts, busy-guard.ts, format-bytes.ts, rel-path.ts, fold-case.ts, split-list.ts",
+  "license": "AGPL-3.0-or-later"
 }

@@ -2,5 +2,6 @@
   "source": "obsidian-kit",
   "version": "0.73.0",
   "sha": "e82f442",
-  "vendored": "help-setting.ts, settings_walker.ts, confirm.ts, folder-suggest.ts"
+  "vendored": "help-setting.ts, settings_walker.ts, confirm.ts, folder-suggest.ts",
+  "license": "AGPL-3.0-or-later"
 }
