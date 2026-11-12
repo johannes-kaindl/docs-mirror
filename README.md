@@ -8,6 +8,8 @@
 [![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-DOCS)
 ![Platform](https://img.shields.io/badge/platform-Obsidian%201.11.4%2B%20%C2%B7%20desktop%20only-7c3aed)
 
+<p align="center"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/hero.png" width="820" alt="Obsidian with the mirrored repository docs in the file explorer, one mirrored note open, and the Docs Mirror sidebar showing a sync plan that waits for confirmation"></p>
+
 The repositories stay the source of truth. The vault is a reading view: it is never written back into a repository.
 
 Version 0.1.0, not yet released. The plugin is desktop-only because it reads the source folders with Node.js. On your phone, read the vault through Obsidian Sync; the plugin does not run there.
@@ -50,6 +52,12 @@ For a first setup, follow [docs/getting-started.md](https://github.com/johannes-
 4. The first run never writes directly. The sidebar shows the sync plan; check it, tick any conflict you want to overwrite, click **Run plan** and confirm in the dialog.
 5. Later runs go through without a question unless one of the five reasons above applies. If a run waits, it stays in the sidebar until you confirm or cancel it.
 
+<a href="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/first-plan.png"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/thumbs/first-plan.png" width="380" alt="The sidebar on the first run: status Waiting for confirmation and a sync plan listing 13 new files and one file that exists only in the vault"></a><br><sub>Click the preview for the full-size image</sub>
+
+<a href="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/plan.png"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/thumbs/plan.png" width="380" alt="A later sync plan with all groups open: one new, one changed, one to delete, one edited in the vault, one conflict with a checkbox and Overwrite all and Overwrite none, one file only in the vault"></a><br><sub>Click the preview for the full-size image</sub>
+
+<a href="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/result.png"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/thumbs/result.png" width="380" alt="The sidebar after a run: status Up to date and the last-run card with the counts for new, changed, unchanged, deleted, overwritten, skipped and errors"></a><br><sub>Click the preview for the full-size image</sub>
+
 Step by step with the reasons behind it: [Getting started](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/getting-started.md).
 
 ### Commands
@@ -61,6 +69,8 @@ Step by step with the reasons behind it: [Getting started](https://github.com/jo
 ## Configuration
 
 All settings are in Settings → Docs Mirror. The source root is stored per device and must be set on each device; the other settings are saved in the plugin's `data.json`.
+
+<a href="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/settings.png"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/thumbs/settings.png" width="380" alt="The Docs Mirror settings: help row, source root, folder patterns, excluded names, file types and largest file"></a><br><sub>Click the preview for the full-size image</sub>
 
 - **Source root:** the absolute path of the folder whose repositories are mirrored. `~` and relative paths are refused.
 - **Folder patterns:** one pattern per line, relative to the source root. Matching folders are mirrored with everything below them. See [Adjust the folder patterns](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/how-to-folder-patterns.md).

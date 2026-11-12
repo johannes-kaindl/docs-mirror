@@ -8,6 +8,8 @@
 [![Docs: CC BY-SA 4.0](https://img.shields.io/badge/docs-CC%20BY--SA%204.0-lightgrey.svg)](LICENSE-DOCS)
 ![Platform](https://img.shields.io/badge/platform-Obsidian%201.11.4%2B%20%C2%B7%20desktop%20only-7c3aed)
 
+<p align="center"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/hero.png" width="820" alt="Obsidian mit den gespiegelten Repository-Docs im Dateibaum, einer geöffneten gespiegelten Notiz und der Docs-Mirror-Seitenleiste mit einem Sync-Plan, der auf Bestätigung wartet"></p>
+
 Die Repositories bleiben die Quelle der Wahrheit. Der Vault ist eine Leseansicht: Er wird nie zurück in ein Repository geschrieben.
 
 Version 0.1.0, noch nicht veröffentlicht. Das Plugin läuft nur auf dem Desktop, weil es die Quellordner mit Node.js liest. Auf dem Telefon liest du den Vault über Obsidian Sync; dort läuft das Plugin nicht.
@@ -50,6 +52,12 @@ Für die Ersteinrichtung folge [docs/getting-started.md](https://github.com/joha
 4. Der erste Lauf schreibt nie direkt. Die Seitenleiste zeigt den Sync-Plan; prüfe ihn, kreuze Konflikte an, die du überschreiben willst, klicke **Plan ausführen** und bestätige im Fenster.
 5. Spätere Läufe gehen ohne Rückfrage durch, solange keiner der fünf Gründe oben zutrifft. Wartet ein Lauf, bleibt er in der Seitenleiste, bis du ihn bestätigst oder abbrichst.
 
+<a href="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/first-plan.png"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/thumbs/first-plan.png" width="380" alt="Die Seitenleiste beim ersten Lauf: Status „Waiting for confirmation“ und ein Sync-Plan mit 13 neuen Dateien und einer Datei, die nur im Vault liegt"></a><br><sub>Vorschau anklicken für das Bild in voller Größe</sub>
+
+<a href="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/plan.png"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/thumbs/plan.png" width="380" alt="Ein späterer Sync-Plan mit allen Gruppen offen: eine neue, eine geänderte, eine zu löschende, eine im Vault veränderte Datei, ein Konflikt mit Kästchen sowie „Overwrite all“ und „Overwrite none“, eine Datei nur im Vault"></a><br><sub>Vorschau anklicken für das Bild in voller Größe</sub>
+
+<a href="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/result.png"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/thumbs/result.png" width="380" alt="Die Seitenleiste nach einem Lauf: Status „Up to date“ und die Karte zum letzten Lauf mit den Zahlen zu neu, geändert, unverändert, gelöscht, überschrieben, übersprungen und Fehlern"></a><br><sub>Vorschau anklicken für das Bild in voller Größe</sub>
+
 Schritt für Schritt mit den Gründen dahinter (englisch): [Getting started](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/getting-started.md).
 
 ### Befehle
@@ -61,6 +69,8 @@ Schritt für Schritt mit den Gründen dahinter (englisch): [Getting started](htt
 ## Konfiguration
 
 Alle Einstellungen stehen unter Einstellungen → Docs Mirror. Der Quellordner wird gerätelokal gespeichert und muss auf jedem Gerät gesetzt werden; die übrigen Einstellungen liegen in der `data.json` des Plugins.
+
+<a href="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/settings.png"><img src="https://raw.githubusercontent.com/johannes-kaindl/docs-mirror/main/docs/images/thumbs/settings.png" width="380" alt="Die Einstellungen von Docs Mirror: Hilfe-Zeile, Quellordner, Ordnermuster, ausgeschlossene Namen, Dateitypen und größte Datei (englische Oberfläche)"></a><br><sub>Vorschau anklicken für das Bild in voller Größe</sub>
 
 - **Quellordner:** der absolute Pfad des Ordners, dessen Repositories gespiegelt werden. `~` und relative Pfade werden abgelehnt.
 - **Ordnermuster:** ein Muster je Zeile, relativ zum Quellordner. Passende Ordner werden mit allem darunter gespiegelt. Siehe [Adjust the folder patterns](https://github.com/johannes-kaindl/docs-mirror/blob/main/docs/how-to-folder-patterns.md) (englisch).
