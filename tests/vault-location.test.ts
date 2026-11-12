@@ -7,6 +7,11 @@ describe("locateVault", () => {
     expect(locateVault("/", "/vault")).toEqual({ kind: "below", rel: "vault" });
   });
 
+  it("ein absoluter Basispfad gleicht keinem relativen: kein Kit-canonVaultDir (führender Schrägstrich bleibt, 2026-11-12)", () => {
+    expect(locateVault("/Users/a", "Users/a/v")).toEqual({ kind: "outside" });
+    expect(locateVault("/", "/Users/a/vault")).toEqual({ kind: "below", rel: "Users/a/vault" });
+  });
+
   it("Vault gleich Wurzel (Schreibweise, Schrägstrich am Ende, Rückstrich, NFD) → same", () => {
     expect(locateVault("/data/repos", "/data/repos")).toEqual({ kind: "same" });
     expect(locateVault("/data/repos", "/DATA/Repos/")).toEqual({ kind: "same" });
