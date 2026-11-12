@@ -742,16 +742,42 @@ describe("DocsMirrorPlugin: Verdrahtung", () => {
     expect(notices()[0]).toMatch(/^The sync state of this device has grown to \d/);
   });
 
-  it("yieldToUi gibt über den Timer des Plugins ab", async () => {
+  it("yieldToUi gibt ohne Zeitgeber ab: auch ein Zeitgeber, der nie feuert, hält die Pause nicht an", async () => {
     const s = setup();
     await s.plugin.onload();
     let done = false;
     void s.deps().yieldToUi().then(() => { done = true; });
-    await settle();
-    expect(done).toBe(false);
-    s.flushTimers();
+    // Kein flushTimers: die Zeitgeber des Plugins feuern nie (gedrosseltes Fenster).
     await settle();
     expect(done).toBe(true);
+    expect(s.timers).toHaveLength(0);
+  });
+
+  it("yieldToUi gibt erst nach einem Makrotask ab, nicht schon im Mikrotask", async () => {
+    const s = setup();
+    await s.plugin.onload();
+    let done = false;
+    void s.deps().yieldToUi().then(() => { done = true; });
+    for (let i = 0; i < 20; i++) await Promise.resolve();
+    expect(done).toBe(false);
+    await settle();
+    expect(done).toBe(true);
+  });
+
+  it("mehrere gleichzeitige Pausen lösen alle auf; onunload löst offene Pausen auf", async () => {
+    const s = setup();
+    await s.plugin.onload();
+    const order: number[] = [];
+    void s.deps().yieldToUi().then(() => order.push(1));
+    void s.deps().yieldToUi().then(() => order.push(2));
+    await settle();
+    expect(order).toEqual([1, 2]);
+    let open = false;
+    void s.deps().yieldToUi().then(() => { open = true; });
+    s.plugin.onunload();
+    await Promise.resolve();
+    await Promise.resolve();
+    expect(open).toBe(true);
   });
 
   it("der Standard-Timer nutzt window.setTimeout und window.clearTimeout", () => {

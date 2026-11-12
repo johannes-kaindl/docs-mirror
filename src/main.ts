@@ -18,6 +18,30 @@ import { getLang, pickLang, setLang } from "./vendor/kit/i18n";
 /** Wartezeit nach `onLayoutReady`, bevor der Startlauf beginnt: der Vault-Start bleibt davon unberührt. */
 const STARTUP_DELAY_MS = 2000;
 
+/** Makrotask-Pause ohne Zeitgeber. Chromium drosselt `window.setTimeout` in einem verdeckten Fenster (Sekunden bis eine Minute je Aufruf);
+ *  eine Pause über den Zeitgeber kann dann jede Runde des Scans zur Wartezeit machen, weil das Zeittor nach einer langen Pause sofort wieder
+ *  fällig ist (Befund 2026-10-31). Eine Nachricht auf einem `MessageChannel` ist ein eigener Makrotask, den keine Drosselung verzögert; die
+ *  Oberfläche kommt dazwischen trotzdem zum Zug. Ein Kanal je Plugin, `close` löst offene Pausen auf. */
+function createMacrotaskPause(): { pause: () => Promise<void>; close: () => void } {
+  let channel: MessageChannel | null = null;
+  const waiting: (() => void)[] = [];
+  return {
+    pause: () => new Promise<void>((resolve) => {
+      if (channel === null) {
+        channel = new MessageChannel();
+        channel.port1.onmessage = () => { waiting.shift()?.(); };
+      }
+      waiting.push(resolve);
+      channel.port2.postMessage(null);
+    }),
+    close: () => {
+      channel?.port1.close();
+      channel = null;
+      for (const resolve of waiting.splice(0)) resolve();
+    },
+  };
+}
+
 function rawLanguage(): string | null {
   try { return getLanguage(); } catch { return null; }
 }
@@ -46,6 +70,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
   private runSource: ReturnType<typeof createSourcePort> | null = null;
   private startupTimer: number | null = null;
   private unloaded = false;
+  private readonly macrotask = createMacrotaskPause();
   private warnedLarge = false;
   private savedJson = "";
   private readonly listeners = new Set<() => void>();
@@ -71,7 +96,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
       vault: createVaultPort(this.app, tempDir),
       state: this.device,
       settings: () => this.settings,
-      yieldToUi: () => new Promise<void>((resolve) => { this.timers.set(resolve, 0); }),
+      yieldToUi: () => this.macrotask.pause(),
       now: () => Date.now(),
       // Das Basis-Verzeichnis des Vaults kennt nur der Desktop-Adapter; der Kern bekommt nur den Pfad (kein fs im Kern).
       vaultBasePath: () => {
@@ -106,6 +131,7 @@ export default class DocsMirrorPlugin extends Plugin implements DocsMirrorHost, 
     }
     // Ein laufender Lauf hört auf, bevor das Plugin verschwindet: die Datei, an der er schreibt, wird fertig, die nächste nicht begonnen.
     this.abort?.abort();
+    this.macrotask.close();
     this.listeners.clear();
   }
 
